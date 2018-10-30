@@ -1,0 +1,33 @@
+[mysqld]
+bind-address = controller03
+binlog_format = ROW
+max_connect_errors = 10240
+
+# InnoDB Configuration
+innodb_autoinc_lock_mode = 2
+innodb_flush_log_at_trx_commit = 0
+
+[galera]
+# Galera Cluster Configuration
+wsrep_on = on
+wsrep_provider = /usr/lib/libgalera_smm.so
+wsrep_provider_options = "pc.recovery=TRUE;gcache.size=300M"
+wsrep_cluster_name = "galera_cluster"
+wsrep_cluster_address = "gcomm://controller01,controller02,controller03"
+wsrep_sst_method = rsync
+
+# Galera Node Configuration
+wsrep_node_name = controller03
+wsrep_node_address = controller03
+
+
+
+
+
+# sudo apt-get install software-properties-common
+# sudo apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+# sudo add-apt-repository 'deb [arch=amd64,arm64,i386,ppc64el] http://mariadb.nethub.com.hk/repo/10.3/ubuntu xenial main'
+# sudo apt update && sudo apt install mariadb-server python-pymysql
+
+# ln -s /etc/apparmor.d/usr /etc/apparmor.d/disable/.sbin.mysqld
+# service apparmor restart

@@ -1,0 +1,29 @@
+---
+# tasks file for roles/glance
+- name: Included var from controller_required, keystone
+  include_vars:
+    file: ../../{{ item }}/defaults/main.yml
+  with_items:
+    - keystone
+    - controller_required
+  when:
+    - in_action == 'controller'
+  tags: ['copy_script']
+
+- name: Copy glance script to remote
+  template:
+    dest: '{{ dest_scripts }}/glance.sh'
+    force: yes
+    mode: 0755
+    src: glance.sh.j2
+  when:
+    - in_action == 'controller'
+  tags: ['copy_script']
+
+- name: Installing glance service
+  shell: sh glance.sh
+  args:
+    chdir: '{{ dest_scripts }}'
+  when:
+    - in_action == 'controller'
+  tags: ['install_glance']

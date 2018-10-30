@@ -1,0 +1,56 @@
+#!/bin/sh
+
+# Install NTP
+apt install -y chrony
+# Config NTP
+sed -i "s/pool 2.debian.pool.ntp.org offline iburst/\
+server 0.vn.pool.ntp.org iburst\n\
+server 1.asia.pool.ntp.org iburst\n\
+server 3.asia.pool.ntp.org iburst\n/g" /etc/chrony/chrony.conf
+sed -i "s/#allow foo.example.net/\
+#allow foo.example.net\n\
+allow {{ network }}/g" /etc/chrony/chrony.conf
+service chrony restart
+
+# SQL database for Ubuntu
+apt install -y mariadb-server python-pymysql
+# Config MySQL
+cat << EOF > /etc/mysql/mariadb.conf.d/99-openstack.cnf
+[mysqld]
+bind-address = {{ mysql_database.listen }}
+
+default-storage-engine = innodb
+innodb_file_per_table = on
+max_connections = 4096
+collation-server = utf8_general_ci
+character-set-server = utf8
+
+EOF
+service mysql restart
+
+# Message queue for Ubuntu
+apt install -y rabbitmq-server
+rabbitmqctl add_user {{ message_queue.username }} {{ message_queue.password }}
+rabbitmqctl set_permissions {{ message_queue.username }} ".*" ".*" ".*"
+service rabbitmq-server restart
+
+
+# Memcached for Ubuntu
+apt install -y memcached python-memcache
+sed -i "s/-l 127.0.0.1/-l {{ memcached.listen }}/g" /etc/memcached.conf
+service memcached restart
+
+# Etcd for Ubuntu
+apt install -y etcd
+sed -i 's/# ETCD_NAME="hostname"/ETCD_NAME="{{ etcd.name }}"/g' /etc/default/etcd
+sed -i 's/# ETCD_DATA_DIR="\/var\/lib\/etcd\/default"/ETCD_DATA_DIR="\/var\/lib\/etcd"/g' /etc/default/etcd
+sed -i 's/# ETCD_INITIAL_CLUSTER_STATE="existing"/ETCD_INITIAL_CLUSTER_STATE="new"/g' /etc/default/etcd
+sed -i 's/# ETCD_INITIAL_CLUSTER_TOKEN/ETCD_INITIAL_CLUSTER_TOKEN/g' /etc/default/etcd
+sed -i 's/# ETCD_INITIAL_CLUSTER="default=http:\/\/localhost:2380,default=http:\/\/localhost:7001"/ETCD_INITIAL_CLUSTER="controller=http:\/\/{{ etcd.initial_cluster }}"/g' /etc/default/etcd
+sed -i 's/# ETCD_INITIAL_ADVERTISE_PEER_URLS="http:\/\/localhost:2380,http:\/\/localhost:7001"/ETCD_INITIAL_ADVERTISE_PEER_URLS="http:\/\/{{ etcd.initial_advertise_peer_urls }}"/g' /etc/default/etcd
+sed -i 's/# ETCD_ADVERTISE_CLIENT_URLS="http:\/\/localhost:2379,http:\/\/localhost:4001"/ETCD_ADVERTISE_CLIENT_URLS="http:\/\/{{ etcd.advertise_client_urls }}"/g' /etc/default/etcd
+sed -i 's/# ETCD_LISTEN_PEER_URLS="http:\/\/localhost:2380,http:\/\/localhost:7001"/ETCD_LISTEN_PEER_URLS=="http:\/\/{{ etcd.listen_peer_urls }}"/g' /etc/default/etcd
+sed -i 's/# ETCD_LISTEN_CLIENT_URLS="http:\/\/localhost:2379,http:\/\/localhost:4001"/ETCD_LISTEN_CLIENT_URLS="http:\/\/{{ etcd.listen_client_urls }}"/g' /etc/default/etcd
+systemctl enable etcd
+systemctl start etcd
+

@@ -1,0 +1,24 @@
+#!/bin/sh
+source utils.sh
+
+# Compute node configure
+# Open vSwitch: Self-service networks
+apt install -y neutron-openvswitch-agent neutron-dhcp-agent neutron-metadata-agent
+
+# enable VXLAN support including layer-2 population
+add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip overlay_interface_ip_address
+add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini agent tunnel_types vxlan
+add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini agent l2_population True
+
+# Configure the Compute service to use the Networking service
+add_config /etc/nova/nova.conf neutron url http://{{ neutron.internal_url }}
+add_config /etc/nova/nova.conf neutron auth_url http://{{ keystone.internal_url }}
+add_config /etc/nova/nova.conf neutron auth_type password
+add_config /etc/nova/nova.conf neutron project_domain_name default
+add_config /etc/nova/nova.conf neutron user_domain_name default
+add_config /etc/nova/nova.conf neutron region_name RegionOne
+add_config /etc/nova/nova.conf neutron project_name service
+add_config /etc/nova/nova.conf neutron username neutron
+add_config /etc/nova/nova.conf neutron password {{ neutron.password }}
+
+service neutron-openvswitch-agent restart

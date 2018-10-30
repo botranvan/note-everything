@@ -1,0 +1,44 @@
+---
+# defaults file for roles/keystone
+dest_scripts: /root/openstack-scripts
+
+database_keystone_password: Welcome123
+
+keystone:
+  password: Welcome123
+  admin_url: 10.5.9.130:5000
+  internal_url: 10.5.9.130:5000
+  public_url: 10.5.9.130:5000
+
+accounts_scripts:
+  - username: myuser
+    password: Welcome123
+    auth_url: 10.5.9.130:5000
+    domain_name: Default
+    project_name: myproject
+    user_domain_name: Default
+
+domains:
+  - name: example
+    description: An Example Domain
+
+
+projects:
+  - name: service
+    domain: default
+    description: Service Project
+  - name: myproject
+    domain: default
+    description: Demo Project
+
+users:
+  - name: myuser
+    password: Welcome123
+    domain: default
+
+openstack_roles:
+  - name: myrole
+    domain: default
+    assign:
+      - user: myuser
+        project: myproject

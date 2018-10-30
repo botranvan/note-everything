@@ -1,0 +1,45 @@
+create using post method
+read, get using get method
+
+on facebook api using 3 concepts are:
+
+    - object like as person (me), user_id, post_id, photo_id, whatever meaning id
+    - fields
+    - edge:
+        - Album
+        - Comment
+        - Event
+        - Life Event
+        - Link
+        - Live Video
+        - Note
+        - Official Event
+        - Open Graph Action
+        - Open Graph Object
+        - Photo
+        - Post
+        - Status
+        - Thread
+        - User
+        - Video
+
+    with form object/edge/?fields={some_fields}
+
+create comment:
+
+    id/comments?message="Content of comment"
+
+create post
+
+    id/feed/?message="Content of post"
+
+create react
+
+    id/reactions?type= {NONE, LIKE, LOVE, WOW, HAHA, SAD, ANGRY, THANKFUL}
+
+request some person's feed
+
+    me/friends/object_id?fields=feed.since(time)
+
+
+    on day (timestamp) ? -7 hours : +17 hours and

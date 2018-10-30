@@ -1,0 +1,38 @@
+Setting Docker
+
+curl -sSL get.docker.io | sh -c 
+
+
+Seting Docker compose
+
+sudo curl -L https://github.com/docker/compose/releases/download/1.18.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+
+sudo chmod +x /usr/local/bin/docker-compose
+
+docker-compose --version
+
+
+Setting traefik binary
+
+yum install -y wget
+
+wget https://github.com/containous/traefik/releases/download/v1.4.6/traefik
+
+Get template file config
+
+wget https://raw.githubusercontent.com/containous/traefik/master/traefik.sample.toml
+
+Grant permission exec
+
+chmod 755 traefik
+
+
+cp traefik.sample.toml traefik.toml && rm -rf traefik.sample.toml
+
+
+Setting traefik img docker
+
+
+Sử dụng các đặc quyền bên trong containers
+
+docker run -it --privileged centos:7 /usr/sbin/init

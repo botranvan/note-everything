@@ -1,0 +1,32 @@
+# Cai rabbitmq trên cả 3 node
+
+yum -y install rabbitmq-server
+
+# Cấu hình rabbitmq trên 3 node
+systemctl enable rabbitmq-server.service
+systemctl start rabbitmq-server.service
+rabbitmq-plugins enable rabbitmq_management
+systemctl restart rabbitmq-server
+curl -O http://localhost:15672/cli/rabbitmqadmin
+chmod a+x rabbitmqadmin
+mv rabbitmqadmin /usr/sbin/
+rabbitmqadmin list users
+
+# Cấu hình trên node ctl1
+rabbitmqctl add_user openstack Welcome123
+rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+rabbitmqctl set_user_tags openstack administrator
+rabbitmqctl set_policy ha-all '^(?!amq\.).*' '{"ha-mode": "all"}'   
+scp -p /var/lib/rabbitmq/.erlang.cookie controller02:/var/lib/rabbitmq/.erlang.cookie
+scp -p /var/lib/rabbitmq/.erlang.cookie controller03:/var/lib/rabbitmq/.erlang.cookie
+rabbitmqctl start_app
+
+# Cấu hình cho rabbitmq trên 2 node còn lại
+
+chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie
+chmod 400 /var/lib/rabbitmq/.erlang.cookie
+systemctl restart rabbitmq-server
+rabbitmqctl stop_app 
+rabbitmqctl reset
+rabbitmqctl join_cluster rabbit@controller01
+rabbitmqctl start_app

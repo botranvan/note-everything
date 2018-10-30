@@ -1,0 +1,11 @@
+---
+# defaults file for roles/glance
+dest_scripts: /root/openstack-scripts
+
+database_glance_password: Welcome123
+
+glance:
+  password: Welcome123
+  admin_url: 10.5.9.130:9292
+  internal_url: 10.5.9.130:9292
+  public_url: 10.5.9.130:9292

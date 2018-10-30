@@ -1,0 +1,20 @@
+---
+# tasks file for neutron
+- name: Included var from controller_required, keystone, nova
+  include_vars:
+    file: ../../{{ item }}/defaults/main.yml
+  with_items:
+    - keystone
+    - compute
+    - controller_required
+  tags: ['copy_script']
+
+- import_tasks: controller.yml
+  when:
+    - in_action == 'controller'
+- import_tasks: compute.yml
+  when:
+    - in_action == 'compute'
+- import_tasks: network.yml
+  when:
+    - in_action == 'network'

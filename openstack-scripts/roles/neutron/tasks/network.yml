@@ -1,0 +1,14 @@
+---
+- name: Copy neutron script to remote
+  template:
+    dest: '{{ dest_scripts }}/neutron.sh'
+    force: yes
+    mode: 0755
+    src: network.sh.j2
+  tags: ['copy_script']
+
+- name: Installing neutron service on {{ role }}
+  shell: sh neutron.sh
+  args:
+    chdir: '{{ dest_scripts }}'
+  tags: ['install_neutron']

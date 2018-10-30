@@ -1,0 +1,14 @@
+---
+- name: Copy cinder script to remote
+  template:
+    dest: '{{ dest_scripts }}/cinder.sh'
+    force: yes
+    mode: 0755
+    src: cinder.sh.j2
+  tags: ['copy_script']
+
+- name: Installing cinder service on {{ role }}
+  shell: sh cinder.sh
+  args:
+    chdir: '{{ dest_scripts }}'
+  tags: ['install_cinder']

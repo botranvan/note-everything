@@ -1,0 +1,25 @@
+openstack user create --password-prompt masakari
+openstack role add --project service --user masakari admin
+openstack service create --name masakari --description "OpenStack High Availability" instance-ha
+
+openstack endpoint create --region RegionOne masakari public http://10.0.0.13:15868/v1/%\(tenant_id\)s
+openstack endpoint create --region RegionOne masakari admin http://10.0.0.13:15868/v1/%\(tenant_id\)s
+openstack endpoint create --region RegionOne masakari internal http://10.0.0.13:15868/v1/%\(tenant_id\)s
+
+create database masakari;
+grant all privileges on masakari.* to 'masakari'@'localhost' identified by 'Welcome123';
+grant all privileges on masakari.* to 'masakari'@'%' identified by 'Welcome123';
+
+
+
+
+
+apt install gcc python3-dev libvirt-dev tox python-pip && git clone https://github.com/openstack/masakari-monitors.git && cd masakari-monitors
+apt install corosync pacemaker fence-agents
+
+git clone https://github.com/openstack/masakari.git
+
+
+
+
+pymysql python-memcached

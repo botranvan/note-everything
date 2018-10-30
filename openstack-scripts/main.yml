@@ -1,0 +1,12 @@
+---
+- hosts:
+    - all
+  roles:
+    - requirements
+    - controller_required
+    - keystone
+    - glance
+    - compute
+    - neutron
+    - cinder
+

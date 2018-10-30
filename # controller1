@@ -1,0 +1,54 @@
+# controller
+203.0.113.254   controller
+
+
+# controller1
+10.0.0.11       controller01
+
+# controller2
+10.0.0.13       controller02
+
+# controller3
+10.0.0.15       controller03
+
+# network1
+10.0.0.21       network01
+
+# network2
+10.0.0.23       network02
+
+# compute1
+10.0.0.31       compute01
+
+# compute2
+10.0.0.33       compute02
+
+# compute3
+10.0.0.35       compute03
+
+# block1
+10.0.0.41       block01
+
+# block2
+10.0.0.43       block02
+
+# ceph01
+10.0.0.45       ceph01
+
+# ceph02
+10.0.0.47       ceph02
+
+# object1
+10.0.0.51       object01
+
+# object2
+10.0.0.52       object02
+
+# telegraf
+10.0.0.245      telegraf
+
+# rabbitmq1
+10.0.0.254      rabbitmq01
+
+# rabbitmq2
+10.0.0.253      rabbitmq02

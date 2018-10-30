@@ -1,0 +1,1348 @@
+﻿# Cấu hình IP
+vlan horizon: bond0: 10.10.20.11
+vlan mgnt: bond1: 192.168.20.11
+vlan provider: bond3: 
+vlan ceph: bond2: 10.10.10.11
+
+# Set hostname
+hostnamectl set-hostname controller01
+
+#Cấu hình các mode sysctl
+
+echo 'net.ipv4.conf.all.arp_ignore = 1'  >> /etc/sysctl.conf
+echo 'net.ipv4.conf.all.arp_announce = 2'  >> /etc/sysctl.conf
+echo 'net.ipv4.conf.all.rp_filter = 2'  >> /etc/sysctl.conf
+echo 'net.netfilter.nf_conntrack_tcp_be_liberal = 1'  >> /etc/sysctl.conf
+
+cat << EOF >> /etc/sysctl.conf
+net.ipv4.ip_nonlocal_bind = 1
+net.ipv4.tcp_keepalive_time = 6
+net.ipv4.tcp_keepalive_intvl = 3
+net.ipv4.tcp_keepalive_probes = 6
+net.ipv4.ip_forward = 1
+net.ipv4.conf.all.rp_filter = 0
+net.ipv4.conf.default.rp_filter = 0
+EOF
+
+sysctl -p
+
+# Stop firewalld và selinux
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux
+systemctl disable firewalld
+systemctl stop firewalld
+
+
+# Khai bao repo mariadb và update
+echo '[mariadb]
+name = MariaDB
+baseurl = http://yum.mariadb.org/10.2/centos7-amd64
+gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck=1' >> /etc/yum.repos.d/MariaDB.repo
+yum -y update
+
+# Khai bao file hoststa
+echo "192.168.20.11 controller01" >> /etc/hosts
+echo "192.168.20.12 controller02" >> /etc/hosts
+echo "192.168.20.13 controller03" >> /etc/hosts
+echo "192.168.20.21 compute01" >> /etc/hosts
+echo "192.168.20.22 compute02" >> /etc/hosts
+
+# Cấu hình keypair
+ssh-keygen -t rsa -f /root/.ssh/id_rsa -q -P ""
+ssh-copy-id -o StrictHostKeyChecking=no -i /root/.ssh/id_rsa.pub root@controller02
+ssh-copy-id -o StrictHostKeyChecking=no -i /root/.ssh/id_rsa.pub root@controller03
+
+Lưu ý: nhập pass khi được yêu cầu
+
+# Cai dat cac goi can thiet 
+yum -y install centos-release-openstack-queens
+yum -y install crudini wget vim
+yum -y install python-openstackclient openstack-selinux python2-PyMySQL
+
+# Cau hinh chrony
+yum -y install chrony
+sed -i 's/server 0.centos.pool.ntp.org iburst/ \
+server 1.vn.pool.ntp.org iburst \
+server 0.asia.pool.ntp.org iburst \
+server 3.asia.pool.ntp.org iburst/g' /etc/chrony.conf
+sed -i 's/server 1.centos.pool.ntp.org iburst/#/g' /etc/chrony.conf
+sed -i 's/server 2.centos.pool.ntp.org iburst/#/g' /etc/chrony.conf
+sed -i 's/server 3.centos.pool.ntp.org iburst/#/g' /etc/chrony.conf
+sed -i 's/#allow 192.168.0.0\/16/allow 192.168.20.0\/24/g' /etc/chrony.conf
+systemctl enable chronyd.service
+systemctl start chronyd.service
+systemctl restart chronyd.service
+chronyc sources
+
+# Cấu hình memcache
+yum install -y memcached
+
+sed -i "s/-l 127.0.0.1,::1/-l 192.168.20.11/g" /etc/sysconfig/memcached
+
+systemctl enable memcached.service
+systemctl restart memcached.service
+
+# Cài đặt galera
+
+yum -y install mariadb-server rsync xinetd crudini
+
+
+# Cấu hình galera 
+cp /etc/my.cnf.d/server.cnf /etc/my.cnf.d/server.cnf.orig
+rm -rf /etc/my.cnf.d/server.cnf
+
+cat << EOF >> /etc/my.cnf.d/server.cnf
+[server]
+[mysqld]
+[galera]
+wsrep_on=ON
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+innodb_locks_unsafe_for_binlog=1
+query_cache_size=0
+query_cache_type=0
+bind-address=192.168.20.11
+datadir=/var/lib/mysql
+innodb_log_file_size=100M
+innodb_file_per_table
+innodb_flush_log_at_trx_commit=2
+wsrep_provider=/usr/lib64/galera/libgalera_smm.so
+wsrep_cluster_address="gcomm://192.168.20.11,192.168.20.12,192.168.20.13"
+wsrep_cluster_name='galera_cluster'
+wsrep_node_address="192.168.20.11"
+wsrep_node_name='controller01'
+wsrep_sst_method=rsync
+max_connections = 10240
+#max_allowed_packet = 16M
+skip-name-resolve
+#key_buffer = 16M
+#thread_stack = 192K
+#thread_cache_size = 8
+#innodb_buffer_pool_size = 64M
+[embedded]
+[mariadb]
+[mariadb-10.2]
+EOF
+
+# Tạo mới cluster trên node controller1
+Lưu ý: bước này cần làm đồng bộ, yêu cầu 2 node còn lại đã cấu hình xong phần mariadb
+
+galera_new_cluster
+
+# Cấu hình password
+
+password_galera_root=Apnet2018
+cat << EOF | mysql -uroot
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$password_galera_root';FLUSH PRIVILEGES;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '$password_galera_root';FLUSH PRIVILEGES;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'192.168.20.11' IDENTIFIED BY '$password_galera_root';FLUSH PRIVILEGES;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'192.168.20.12' IDENTIFIED BY '$password_galera_root';FLUSH PRIVILEGES;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'192.168.20.13' IDENTIFIED BY '$password_galera_root';FLUSH PRIVILEGES;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '$password_galera_root';FLUSH PRIVILEGES;
+EOF
+
+# Cấu hình cho haproxy check mysql
+yum install git -y
+git clone https://github.com/thaonguyenvan/percona-clustercheck
+cp percona-clustercheck/clustercheck /usr/local/bin
+
+
+cat << EOF >> /etc/xinetd.d/mysqlchk
+service mysqlchk
+{
+      disable = no
+      flags = REUSE
+      socket_type = stream
+      port = 9200
+      wait = no
+      user = nobody
+      server = /usr/local/bin/clustercheck
+      log_on_failure += USERID
+      only_from = 192.168.20.11/24
+      per_source = UNLIMITED
+}
+EOF
+
+# Tạo service
+echo 'mysqlchk 9200/tcp # MySQL check' >> /etc/services
+
+# Tạo tk check mysql
+mysql -uroot -pApnet2018
+GRANT PROCESS ON *.* TO 'clustercheckuser'@'localhost' IDENTIFIED BY 'clustercheckpassword!';
+FLUSH PRIVILEGES;
+
+# Bật xinetd
+systemctl restart xinetd
+systemctl enable xinetd
+
+# Cai rabbitmq
+
+yum -y install rabbitmq-server
+
+# Cấu hình rabbitmq 
+systemctl enable rabbitmq-server.service
+systemctl start rabbitmq-server.service
+rabbitmq-plugins enable rabbitmq_management
+systemctl restart rabbitmq-server
+curl -O http://localhost:15672/cli/rabbitmqadmin
+chmod a+x rabbitmqadmin
+mv rabbitmqadmin /usr/sbin/
+rabbitmqadmin list users
+
+# Cấu hình trên node ctl1
+rabbitmqctl add_user openstack Apnet2018
+rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+rabbitmqctl set_user_tags openstack administrator
+rabbitmqctl set_policy ha-all '^(?!amq\.).*' '{"ha-mode": "all"}'   
+scp -p /var/lib/rabbitmq/.erlang.cookie controller02:/var/lib/rabbitmq/.erlang.cookie
+scp -p /var/lib/rabbitmq/.erlang.cookie controller03:/var/lib/rabbitmq/.erlang.cookie
+rabbitmqctl start_app
+
+#Cài HAProxy va Pacemaker
+
+yum install pacemaker corosync haproxy pcs fence-agents-all resource-agents psmisc policycoreutils-python -y
+
+
+# Tạo password cho hacluster
+echo Apnet2018 | passwd --stdin hacluster
+
+# Bật service
+systemctl enable pcsd.service pacemaker.service corosync.service haproxy.service
+systemctl start pcsd.service
+
+# Tạo cluster
+Lưu ý: Bước này cần làm đồng bộ, yêu cầu 2 node controller còn lại đã xong phần cấu hình password cho hacluster
+
+pcs cluster auth controller01 controller02 controller03 -u"hacluster" -p"Apnet2018"
+
+# Setup cluster
+pcs cluster setup --name ha_cluster controller01 controller02 controller03
+
+pcs cluster enable --all
+pcs cluster start --all
+
+pcs property set stonith-enabled=false
+pcs property set no-quorum-policy=ignore
+pcs property set default-resource-stickiness="INFINITY"
+
+# Tạo resource VIP cho dải mgnt
+
+pcs resource create vip_public ocf:heartbeat:IPaddr2 ip=192.168.20.99 cidr_netmask=24 \
+    meta migration-threshold=3 failure-timeout=60 resource-stickiness=1 \
+    op monitor interval=5 timeout=20 \
+	op start interval=0 timeout=30 \
+	op stop interval=0 timeout=30
+
+# Tạo resource VIP cho dải horizon
+       
+pcs resource create VIP_Horizon ocf:heartbeat:IPaddr2 ip=10.10.20.99 cidr_netmask=24 meta migration-threshold=3 failure-timeout=60 resource-stickiness=1 op monitor interval=5 timeout=20 op start interval=0 timeout=30 op stop interval=0 timeout=30
+
+# Tạo resource cho haproxy
+
+pcs resource create p_haproxy systemd:haproxy \
+	meta migration-threshold=3 failure-timeout=120 target-role=Started \
+	op monitor interval=30 timeout=60 \
+	op start interval=0 timeout=60 \
+	op stop interval=0 timeout=60   
+
+# Tạo ràng buộc và enable các resource VIP và haproxy
+pcs constraint colocation add VIP_Horizon with p_haproxy score=INFINITY
+pcs constraint order start VIP_Horizon then start p_haproxy
+pcs resource enable VIP_Horizon
+
+pcs constraint colocation add vip_public with p_haproxy score=INFINITY
+pcs constraint order start vip_public then start p_haproxy
+pcs resource enable vip_public
+pcs resource enable p_haproxy
+
+# Cấu hình haproxy
+cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.org 
+rm -rf /etc/haproxy/haproxy.cfg
+cat >> /etc/haproxy/haproxy.cfg << eof
+global
+    daemon
+    group  haproxy
+    log  /dev/log local0
+    log /dev/log    local1 notice
+    maxconn  16000
+    pidfile  /var/run/haproxy.pid
+    stats  socket /var/lib/haproxy/stats
+    tune.bufsize  32768
+    tune.maxrewrite  1024
+    user  haproxy
+
+  
+defaults
+    log  global
+    maxconn  8000
+    mode  http
+    option  redispatch
+    option  http-server-close
+    option  splice-auto
+    retries  3
+    timeout  http-request 20s
+    timeout  queue 1m
+    timeout  connect 10s
+    timeout  client 1m
+    timeout  server 1m
+    timeout  check 10s
+
+listen stats
+    bind 10.10.20.99:8080
+    mode http
+    stats enable
+    stats uri /stats
+    stats realm HAProxy\ Statistics
+
+listen mysqld 
+    bind 192.168.20.99:3306
+    balance  leastconn
+    mode  tcp
+    option  httpchk
+    option  tcplog
+    option  clitcpka
+    option  srvtcpka
+    timeout client  28801s
+    timeout server  28801s    
+    server controller01 192.168.20.11:3306 check port 9200 inter 5s fastinter 2s rise 3 fall 3 
+    server controller02 192.168.20.12:3306 check port 9200 inter 5s fastinter 2s rise 3 fall 3 backup
+    server controller03 192.168.20.13:3306 check port 9200 inter 5s fastinter 2s rise 3 fall 3 backup
+
+
+listen keystone-5000
+    bind 192.168.20.99:5000 
+    option  httpchk
+    option  httplog
+    option  httpclose
+    balance source
+    server controller01 192.168.20.11:5000  check inter 5s fastinter 2s downinter 2s rise 3 fall 3
+    server controller02 192.168.20.12:5000  check inter 5s fastinter 2s downinter 2s rise 3 fall 3
+    server controller03 192.168.20.13:5000  check inter 5s fastinter 2s downinter 2s rise 3 fall 3
+
+listen keystone-35357
+    bind 192.168.20.99:35357
+    option  httpchk
+    option  httplog
+    option  httpclose
+    balance source
+    server controller01 192.168.20.11:35357  check inter 5s fastinter 2s downinter 2s rise 3 fall 3
+    server controller02 192.168.20.12:35357  check inter 5s fastinter 2s downinter 2s rise 3 fall 3
+    server controller03 192.168.20.13:35357  check inter 5s fastinter 2s downinter 2s rise 3 fall 3
+
+
+listen nova-api-8774
+    bind 192.168.20.99:8774 
+    option  httpchk
+    option  httplog
+    option  httpclose
+    timeout server  600s
+    server controller01 192.168.20.11:8774  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller02 192.168.20.12:8774  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller03 192.168.20.13:8774  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+
+listen nova-metadata-api
+    bind 192.168.20.99:8775 
+    option  httpchk
+    option  httplog
+    option  httpclose
+    server controller01 192.168.20.11:8775  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller02 192.168.20.12:8775  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller03 192.168.20.13:8775  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+
+listen nova-novncproxy
+	bind 10.10.20.99:6080
+    balance  source
+    option  httplog
+    server controller01 10.10.20.11:6080  check
+    server controller02 10.10.20.12:6080  check
+    server controller03 10.10.20.13:6080  check
+    
+listen nova_placement_api
+    bind 192.168.20.99:8778
+    balance source
+    option tcpka
+    option tcplog
+    http-request del-header X-Forwarded-Proto
+    server controller01 192.168.20.11:8778 check inter 2000 rise 2 fall 5
+    server controller02 192.168.20.12:8778 check inter 2000 rise 2 fall 5
+    server controller03 192.168.20.13:8778 check inter 2000 rise 2 fall 5    
+    
+listen glance-api
+    bind 192.168.20.99:9292
+    option  httpchk /versions
+    option  httplog
+    option  httpclose
+    timeout server  11m
+    server controller01 192.168.20.11:9292  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller02 192.168.20.12:9292  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller03 192.168.20.13:9292  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+
+listen glance-registry
+    bind 192.168.20.99:9191 
+    timeout server  11m
+    server controller01 192.168.20.11:9191  check
+    server controller02 192.168.20.12:9191  check
+    server controller03 192.168.20.13:9191  check
+
+listen neutron
+    bind 192.168.20.99:9696 
+    option  httpchk
+    option  httplog
+    option  httpclose
+    balance source
+    server controller01 192.168.20.11:9696  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller02 192.168.20.12:9696  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller03 192.168.20.13:9696  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+
+listen cinder-api
+    bind 192.168.20.99:8776 
+    option  httpchk
+    option  httplog
+    option  httpclose
+    server controller01 192.168.20.11:8776  check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller02 192.168.20.12:8776 backup check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+    server controller03 192.168.20.13:8776 backup check inter 5s fastinter 2s downinter 3s rise 3 fall 3
+
+  
+listen horizon
+    bind 10.10.20.99:80
+    balance  source
+    mode  http
+    option  forwardfor
+    option  httpchk
+    option  httpclose
+    option  httplog
+    stick  on src
+    stick-table  type ip size 200k expire 30m
+    timeout  client 3h
+    timeout  server 3h
+    server controller01 10.10.20.11:80  weight 1 check
+    server controller02 10.10.20.12:80  weight 1 check
+    server controller03 10.10.20.13:80  weight 1 check
+eof
+
+# Restart lại resource haproxy
+Lưu ý: Yêu cầu 2 node còn lại đã thực hiện xong bước cấu hình haproxy
+
+pcs resource restart p_haproxy
+pcs resource cleanup
+
+# Cài keystone
+
+# Tạo db
+mysql -u root -pApnet2018
+CREATE DATABASE keystone;
+GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' \
+IDENTIFIED BY 'Apnet2018';
+GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' \
+IDENTIFIED BY 'Apnet2018';
+exit
+
+# Cài packages
+yum install openstack-keystone httpd mod_wsgi -y
+
+# Cấu hình bind port
+
+cp /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/
+sed -i -e 's/VirtualHost \*/VirtualHost 192.168.20.11/g' /etc/httpd/conf.d/wsgi-keystone.conf
+sed -i -e 's/Listen 5000/Listen 192.168.20.11:5000/g' /etc/httpd/conf.d/wsgi-keystone.conf
+sed -i -e 's/Listen 35357/Listen 192.168.20.11:35357/g' /etc/httpd/conf.d/wsgi-keystone.conf
+sed -i -e 's/^Listen.*/Listen 10.10.20.11:80/g' /etc/httpd/conf/httpd.conf
+
+# Cấu hình keystone
+
+cp /etc/keystone/keystone.conf /etc/keystone/keystone.conf.org
+rm -rf /etc/keystone/keystone.conf
+
+cat << EOF >> /etc/keystone/keystone.conf
+[DEFAULT]
+[assignment]
+[auth]
+[cache]
+[catalog]
+[cors]
+[credential]
+[database]
+connection = mysql+pymysql://keystone:Apnet2018@192.168.20.99/keystone
+[domain_config]
+[endpoint_filter]
+[endpoint_policy]
+[eventlet_server]
+[federation]
+[fernet_tokens]
+[healthcheck]
+[identity]
+[identity_mapping]
+[ldap]
+[matchmaker_redis]
+[memcache]
+[oauth1]
+[oslo_messaging_amqp]
+[oslo_messaging_kafka]
+[oslo_messaging_notifications]
+[oslo_messaging_rabbit]
+[oslo_messaging_zmq]
+[oslo_middleware]
+[oslo_policy]
+[paste_deploy]
+[policy]
+[profiler]
+[resource]
+[revoke]
+[role]
+[saml]
+[security_compliance]
+[shadow_users]
+[signing]
+[token]
+provider = fernet
+[tokenless_auth]
+[trust]
+EOF
+
+# Phân quyền
+chown root:keystone /etc/keystone/keystone.conf
+
+# Sync db
+su -s /bin/sh -c "keystone-manage db_sync" keystone
+
+# set up fernet key
+keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+
+# Chuyển 2 thư mục này sang 2 node còn lại
+scp -r /etc/keystone/credential-keys /etc/keystone/fernet-keys root@controller02:/etc/keystone/
+scp -r /etc/keystone/credential-keys /etc/keystone/fernet-keys root@controller03:/etc/keystone/
+
+# Bootstrap
+keystone-manage bootstrap --bootstrap-password Apnet2018 \
+  --bootstrap-admin-url http://192.168.20.99:5000/v3/ \
+  --bootstrap-internal-url http://192.168.20.99:5000/v3/ \
+  --bootstrap-public-url http://192.168.20.99:5000/v3/ \
+  --bootstrap-region-id RegionOne
+
+# Enable và start httpd
+systemctl enable httpd.service
+systemctl start httpd.service
+
+# Export biến mtr
+export OS_USERNAME=admin
+export OS_PASSWORD=Apnet2018
+export OS_PROJECT_NAME=admin
+export OS_USER_DOMAIN_NAME=Default
+export OS_PROJECT_DOMAIN_NAME=Default
+export OS_AUTH_URL=http://192.168.20.99:35357/v3
+export OS_IDENTITY_API_VERSION=3
+
+# Tạo domain, user…
+Lưu ý: Yêu cầu đã cấu hình xong bước enable và start httpd trên 2 node còn lại
+openstack domain create --description "An Example Domain" example
+openstack project create --domain default \
+  --description "Service Project" service
+
+openstack project create --domain default \
+  --description "Demo Project" demo
+openstack user create --domain default \
+  --password Apnet2018 demo
+
+openstack role create user
+openstack role add --project demo --user demo user
+
+# Unset 2 biến mtr
+unset OS_AUTH_URL OS_PASSWORD
+
+# Gen token
+openstack --os-auth-url http://192.168.20.99:35357/v3 \
+  --os-project-domain-name Default --os-user-domain-name Default \
+  --os-project-name admin --os-username admin token issue
+
+# Tạo file xác thực 
+cat << EOF >> admin-openrc
+export OS_PROJECT_DOMAIN_NAME=Default
+export OS_USER_DOMAIN_NAME=Default
+export OS_PROJECT_NAME=admin
+export OS_USERNAME=admin
+export OS_PASSWORD=Apnet2018
+export OS_AUTH_URL=http://192.168.20.99:5000/v3
+export OS_IDENTITY_API_VERSION=3
+export OS_IMAGE_API_VERSION=2
+EOF
+
+cat << EOF >> demo-openrc
+export OS_PROJECT_DOMAIN_NAME=Default
+export OS_USER_DOMAIN_NAME=Default
+export OS_PROJECT_NAME=demo
+export OS_USERNAME=demo
+export OS_PASSWORD=Apnet2018
+export OS_AUTH_URL=http://192.168.20.99:5000/v3
+export OS_IDENTITY_API_VERSION=3
+export OS_IMAGE_API_VERSION=2
+EOF
+
+# Kiểm chứng
+Yêu cầu: Đã cấu hình xong cho keystone trên 2 node còn lại
+. admin-openrc
+
+openstack token issue
+
+# Cài glance 
+
+# Tạo db
+
+mysql -u root -pApnet2018
+
+CREATE DATABASE glance;
+
+GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' \
+  IDENTIFIED BY 'Apnet2018';
+
+GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' \
+  IDENTIFIED BY 'Apnet2018';
+
+# Tạo user
+openstack user create --domain default --password Apnet2018 glance
+openstack role add --project service --user glance admin
+openstack service create --name glance \
+  --description "OpenStack Image" image
+
+# Tạo endpoint
+
+openstack endpoint create --region RegionOne \
+  image public http://192.168.20.99:9292
+openstack endpoint create --region RegionOne \
+  image admin http://192.168.20.99:9292
+openstack endpoint create --region RegionOne \
+  image internal http://192.168.20.99:9292
+
+# Cài packages
+yum install -y openstack-glance
+  
+# Cấu hình glance api
+
+cp /etc/glance/glance-api.conf /etc/glance/glance-api.conf.org 
+rm -rf /etc/glance/glance-api.conf
+
+cat << EOF >> /etc/glance/glance-api.conf
+[DEFAULT]
+bind_host = 192.168.20.11
+registry_host = 192.168.20.99
+[cors]
+[database]
+connection = mysql+pymysql://glance:Apnet2018@192.168.20.99/glance
+[glance_store]
+stores = file,http
+default_store = file
+filesystem_store_datadir = /var/lib/glance/images/
+[image_format]
+[keystone_authtoken]
+auth_uri = http://192.168.20.99:5000
+auth_url = http://192.168.20.99:5000
+memcached_servers = 192.168.20.11:11211,192.168.20.12:11211,192.168.20.13:11211
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = glance
+password = Apnet2018
+[matchmaker_redis]
+[oslo_concurrency]
+[oslo_messaging_amqp]
+[oslo_messaging_kafka]
+[oslo_messaging_notifications]
+[oslo_messaging_rabbit]
+[oslo_messaging_zmq]
+[oslo_middleware]
+[oslo_policy]
+[paste_deploy]
+flavor = keystone
+[profiler]
+[store_type_location_strategy]
+[task]
+[taskflow_executor]
+EOF
+
+# Cấu hình glance registry
+
+cp /etc/glance/glance-registry.conf /etc/glance/glance-registry.conf.org
+rm -rf /etc/glance/glance-registry.conf
+cat << EOF >> /etc/glance/glance-registry.conf
+[DEFAULT]
+bind_host = 192.168.20.11
+[database]
+connection = mysql+pymysql://glance:Apnet2018@192.168.20.99/glance
+[keystone_authtoken]
+auth_uri = http://192.168.20.99:5000
+auth_url = http://192.168.20.99:5000
+memcached_servers = 192.168.20.11:11211,192.168.20.12:11211,192.168.20.13:11211
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = glance
+password = Apnet2018
+[matchmaker_redis]
+[oslo_messaging_amqp]
+[oslo_messaging_kafka]
+[oslo_messaging_notifications]
+[oslo_messaging_rabbit]
+[oslo_messaging_zmq]
+[oslo_policy]
+[paste_deploy]
+flavor = keystone
+[profiler]
+EOF
+
+# Phân quyền
+
+chown root:glance /etc/glance/glance-api.conf
+chown root:glance /etc/glance/glance-registry.conf
+
+# Sync db
+Lưu ý: Yêu cầu thực hiện xong bước cấu hình cho glance-api và glance-registry trên 2 node còn lại
+
+su -s /bin/sh -c "glance-manage db_sync" glance
+
+# Enable và start dịch vụ 
+systemctl enable openstack-glance-api.service \
+  openstack-glance-registry.service
+
+systemctl start openstack-glance-api.service \
+  openstack-glance-registry.service
+
+# Download và tạo image
+wget http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
+openstack image create "cirros" \
+  --file cirros-0.3.5-x86_64-disk.img \
+  --disk-format qcow2 --container-format bare \
+  --public
+
+Lưu ý: Sau khi tạo images, mặc định image sẽ được đưa vào thư mục /var/lib/glance/images trên 1 trong 3 node, ta cần scp image này sang 2 node còn lại vào chính thư mục đó, đồng thời phân quyền
+Ví dụ image eb0bd9de-4a75-41e2-b4e5-77c2633d8017 nằm ở node ctl1
+scp eb0bd9de-4a75-41e2-b4e5-77c2633d8017 root@controller2:/var/lib/glance/images/
+scp eb0bd9de-4a75-41e2-b4e5-77c2633d8017 root@controller3:/var/lib/glance/images/
+
+Sau đó sang 2 node còn lại phần quyền cho image
+chown glance:glance /var/lib/glance/images/eb0bd9de-4a75-41e2-b4e5-77c2633d8017
+
+# Cài nova
+
+# Tạo db
+mysql -u root -pApnet2018
+CREATE DATABASE nova_api;
+CREATE DATABASE nova;
+CREATE DATABASE nova_cell0;
+GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' \
+  IDENTIFIED BY 'Apnet2018';
+GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' \
+  IDENTIFIED BY 'Apnet2018';
+
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' \
+  IDENTIFIED BY 'Apnet2018';
+
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' \
+  IDENTIFIED BY 'Apnet2018';
+
+GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' \
+  IDENTIFIED BY 'Apnet2018';
+
+GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' \
+  IDENTIFIED BY 'Apnet2018';
+
+# Tạo user và endpoint
+openstack user create --domain default --password Apnet2018 nova
+openstack role add --project service --user nova admin
+openstack service create --name nova \
+  --description "OpenStack Compute" compute
+
+openstack endpoint create --region RegionOne \
+  compute public http://192.168.20.99:8774/v2.1
+openstack endpoint create --region RegionOne \
+  compute admin http://192.168.20.99:8774/v2.1
+openstack endpoint create --region RegionOne \
+  compute internal http://192.168.20.99:8774/v2.1
+
+openstack user create --domain default --password Apnet2018 placement
+openstack role add --project service --user placement admin
+openstack service create --name placement --description "Placement API" placement
+  
+openstack endpoint create --region RegionOne placement public http://192.168.20.99:8778
+openstack endpoint create --region RegionOne placement admin http://192.168.20.99:8778
+openstack endpoint create --region RegionOne placement internal http://192.168.20.99:8778
+
+# Tải packages
+yum install -y openstack-nova-api openstack-nova-conductor \
+  openstack-nova-console openstack-nova-novncproxy \
+  openstack-nova-scheduler openstack-nova-placement-api
+
+# Cấu hình nova
+
+cp /etc/nova/nova.conf /etc/nova/nova.conf.org 
+rm -rf /etc/nova/nova.conf
+
+cat << EOF >> /etc/nova/nova.conf
+[DEFAULT]
+my_ip = 192.168.20.11
+enabled_apis = osapi_compute,metadata
+use_neutron = True
+osapi_compute_listen=192.168.20.11
+metadata_host=192.168.20.11
+metadata_listen=192.168.20.11
+metadata_listen_port=8775
+firewall_driver = nova.virt.firewall.NoopFirewallDriver
+transport_url = rabbit://openstack:Apnet2018@192.168.20.11:5672,openstack:Apnet2018@192.168.20.12:5672,openstack:Apnet2018@192.168.20.13:5672
+[api]
+auth_strategy = keystone
+[api_database]
+connection = mysql+pymysql://nova:Apnet2018@192.168.20.99/nova_api
+[barbican]
+[cache]
+backend = oslo_cache.memcache_pool
+enabled = true
+memcache_servers = 192.168.20.11:11211,192.168.20.12:11211,192.168.20.13:11211
+[cells]
+[cinder]
+[compute]
+[conductor]
+[console]
+[consoleauth]
+[cors]
+[crypto]
+[database]
+connection = mysql+pymysql://nova:Apnet2018@192.168.20.99/nova
+[devices]
+[ephemeral_storage_encryption]
+[filter_scheduler]
+[glance]
+api_servers = http://192.168.20.99:9292
+[guestfs]
+[healthcheck]
+[hyperv]
+[ironic]
+[key_manager]
+[keystone]
+[keystone_authtoken]
+auth_url = http://192.168.20.99:5000/v3
+memcached_servers = 192.168.20.11:11211,192.168.20.12:11211,192.168.20.13:11211
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+project_name = service
+username = nova
+password = Apnet2018
+[libvirt]
+[matchmaker_redis]
+[metrics]
+[mks]
+[neutron]
+[notifications]
+[osapi_v21]
+[oslo_concurrency]
+lock_path = /var/lib/nova/tmp
+[oslo_messaging_amqp]
+[oslo_messaging_kafka]
+[oslo_messaging_notifications]
+[oslo_messaging_rabbit]
+rabbit_ha_queues = true
+rabbit_retry_interval = 1
+rabbit_retry_backoff = 2
+amqp_durable_queues= true
+[oslo_messaging_zmq]
+[oslo_middleware]
+[oslo_policy]
+[pci]
+[placement]
+os_region_name = RegionOne
+project_domain_name = Default
+project_name = service
+auth_type = password
+user_domain_name = Default
+auth_url = http://192.168.20.99:5000/v3
+username = placement
+password = Apnet2018
+[quota]
+[rdp]
+[remote_debug]
+[scheduler]
+discover_hosts_in_cells_interval = 300
+[serial_console]
+[service_user]
+[spice]
+[upgrade_levels]
+[vault]
+[vendordata_dynamic_auth]
+[vmware]
+[vnc]
+novncproxy_host=10.10.20.11
+enabled = true
+#vncserver_listen = 10.10.20.11
+#vncserver_proxyclient_address = 10.10.20.11
+novncproxy_base_url = http://10.10.20.99:6080/vnc_auto.html
+[workarounds]
+[wsgi]
+[xenserver]
+[xvp]
+EOF
+
+# Thêm vào file 00-nova-placement-api.conf 
+cat << 'EOF' >> /etc/httpd/conf.d/00-nova-placement-api.conf
+
+<Directory /usr/bin>
+   <IfVersion >= 2.4>
+      Require all granted
+   </IfVersion>
+   <IfVersion < 2.4>
+      Order allow,deny
+      Allow from all
+   </IfVersion>
+</Directory>
+EOF
+
+# Cấu hình bind port cho nova-placement
+sed -i -e 's/VirtualHost \*/VirtualHost 192.168.20.11/g' /etc/httpd/conf.d/00-nova-placement-api.conf
+sed -i -e 's/Listen 8778/Listen 192.168.20.11:8778/g' /etc/httpd/conf.d/00-nova-placement-api.conf
+
+# Restart httpd
+systemctl restart httpd
+
+# sync db
+su -s /bin/sh -c "nova-manage api_db sync" nova
+su -s /bin/sh -c "nova-manage cell_v2 map_cell0" nova
+su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
+su -s /bin/sh -c "nova-manage db sync" nova
+
+# Enable và start
+systemctl enable openstack-nova-api.service \
+  openstack-nova-scheduler.service openstack-nova-consoleauth.service \
+  openstack-nova-conductor.service openstack-nova-novncproxy.service
+
+systemctl restart openstack-nova-api.service \
+  openstack-nova-scheduler.service openstack-nova-consoleauth.service \
+  openstack-nova-conductor.service openstack-nova-novncproxy.service
+
+# Kiểm tra lại dịch vụ
+
+openstack compute service list
+
+# Cài neutron
+
+# Tạo db
+mysql -u root -pApnet2018
+CREATE DATABASE neutron;
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' \
+  IDENTIFIED BY 'Apnet2018';
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' \
+  IDENTIFIED BY 'Apnet2018';
+
+# Tạo user, endpoint trên 1 node
+openstack user create --domain default --password Apnet2018 neutron
+openstack role add --project service --user neutron admin
+openstack service create --name neutron \
+  --description "OpenStack Networking" network
+  
+openstack endpoint create --region RegionOne \
+    network public http://192.168.20.99:9696
+openstack endpoint create --region RegionOne \
+  network internal http://192.168.20.99:9696
+openstack endpoint create --region RegionOne \
+  network admin http://192.168.20.99:9696
+  
+# Cài packages
+yum install openstack-neutron openstack-neutron-ml2 \
+  openstack-neutron-openvswitch ebtables -y
+
+# Cấu hình neutron
+Lưu ý: Mô hình này sử dụng mô hình mạng provider (flat) sử dụng openvswitch
+DHCP agent và metadata agent được chạy trên node compute
+
+cp /etc/neutron/neutron.conf /etc/neutron/neutron.conf.org
+rm -rf /etc/neutron/neutron.conf
+  
+cat << EOF >> /etc/neutron/neutron.conf
+[DEFAULT]
+bind_host = 192.168.20.11
+core_plugin = ml2
+service_plugins = router
+transport_url = rabbit://openstack:Apnet2018@192.168.20.11:5672,openstack:Apnet2018@192.168.20.12:5672,openstack:Apnet2018@192.168.20.13:5672
+auth_strategy = keystone
+notify_nova_on_port_status_changes = true
+notify_nova_on_port_data_changes = true
+allow_overlapping_ips = True
+dhcp_agents_per_network = 2
+[agent]
+[cors]
+[database]
+connection = mysql+pymysql://neutron:Apnet2018@192.168.20.99/neutron
+[keystone_authtoken]
+auth_uri = http://192.168.20.99:5000
+auth_url = http://192.168.20.99:35357
+memcached_servers = 192.168.20.11:11211,192.168.20.12:11211,192.168.20.13:11211
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+project_name = service
+username = neutron
+password = Apnet2018
+[matchmaker_redis]
+[nova]
+auth_url = http://192.168.20.99:35357
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = nova
+password = Apnet2018
+[oslo_concurrency]
+lock_path = /var/lib/neutron/tmp
+[oslo_messaging_amqp]
+[oslo_messaging_kafka]
+[oslo_messaging_notifications]
+[oslo_messaging_rabbit]
+rabbit_retry_interval = 1
+rabbit_retry_backoff = 2
+amqp_durable_queues = true
+rabbit_ha_queues = true
+[oslo_messaging_zmq]
+[oslo_middleware]
+[oslo_policy]
+[quotas]
+[ssl]
+EOF
+
+# Cấu hình file ml2
+cp /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugins/ml2/ml2_conf.ini.org
+rm -rf /etc/neutron/plugins/ml2/ml2_conf.ini
+
+cat << EOF >> /etc/neutron/plugins/ml2/ml2_conf.ini
+[DEFAULT]
+[l2pop]
+[ml2]
+type_drivers = flat,vlan,vxlan
+tenant_network_types = vxlan
+mechanism_drivers = openvswitch,l2population
+extension_drivers = port_security
+[ml2_type_flat]
+flat_networks = external
+[ml2_type_geneve]
+[ml2_type_gre]
+[ml2_type_vlan]
+network_vlan_ranges = physnet1
+[ml2_type_vxlan]
+vni_ranges = 1:1000
+[securitygroup]
+enable_ipset = True
+EOF
+
+# Cấu hình file ovs agent
+cp /etc/neutron/plugins/ml2/openvswitch_agent.ini /etc/neutron/plugins/ml2/openvswitch_agent.ini.org 
+rm -rf /etc/neutron/plugins/ml2/openvswitch_agent.ini
+
+cat << EOF >> /etc/neutron/plugins/ml2/openvswitch_agent.ini
+[DEFAULT]
+interface_driver = openvswitch
+[agent]
+tunnel_types=vxlan
+l2_population = True
+[network_log]
+[ovs]
+bridge_mappings = physnet1:br-bond3
+local_ip=192.168.20.11
+[securitygroup]
+enable_security_group = True
+firewall_driver = iptables_hybrid
+[xenapi]
+EOF
+
+# Cấu hình trên file l3 agent
+
+cp /etc/neutron/l3_agent.ini /etc/neutron/l3_agent.ini.org
+rm -rf /etc/neutron/l3_agent.ini
+
+cat << EOF >> /etc/neutron/l3_agent.ini
+[DEFAULT]
+interface_driver = openvswitch
+external_network_bridge = 
+[agent]
+[ovs]
+EOF
+
+# Thêm vào /etc/nova/nova.conf 
+[neutron]
+url = http://192.168.20.99:9696
+auth_url = http://192.168.20.99:35357
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = neutron
+password = Apnet2018
+service_metadata_proxy = true
+metadata_proxy_shared_secret = Apnet2018
+
+# Restart lại dv nova-api
+systemctl restart openstack-nova-api.service
+
+# Phần quyền
+chown -R root:neutron /etc/neutron/
+
+# Tạo liên kết
+ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+
+# Sync db
+su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
+  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+
+# Bật ovs
+systemctl enable openvswitch
+systemctl restart openvswitch
+
+# Thay đổi cấu hình card dùng làm provider
+
+ovs-vsctl add-br br-bond3
+ovs-vsctl add-port br-bond3 bond3
+
+# Thay đổi file cấu hình card mạng của bond3
+
+vi /etc/sysconfig/network-scripts/ifcfg-em1-1
+
+
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=none
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=yes
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=em1
+DEVICE=em1
+ONBOOT=yes
+MASTER=bond3
+SLAVE=yes
+NM_CONTROLLED=no
+
+rm -rf /etc/sysconfig/network-scripts/ifcfg-bond3
+
+cat << EOF >> /etc/sysconfig/network-scripts/ifcfg-bond3
+DEVICE=bond3
+NAME=bond3
+DEVICETYPE=ovs
+TYPE=OVSPort
+OVS_BRIDGE=br-bond3
+ONBOOT=yes
+BOOTPROTO=none
+BONDING_MASTER=yes
+BONDING_OPTS="mode=1 miimon=100"
+NM_CONTROLLED=no
+EOF
+
+cat << EOF >> /etc/sysconfig/network-scripts/ifcfg-br-bond3
+ONBOOT=yes
+DEVICE=br-bond3
+NAME=br-bond3
+DEVICETYPE=ovs
+OVSBOOTPROTO=none
+TYPE=OVSBridge
+EOF
+
+# Restart network
+systemctl restart network
+
+# Enable và start dịch vụ 
+
+
+systemctl enable neutron-server.service \
+  neutron-openvswitch-agent.service neutron-l3-agent.service
+  
+systemctl start neutron-server.service \
+  neutron-openvswitch-agent.service neutron-l3-agent.service
+## Cấu hình horizon
+
+# Tải packages
+
+yum install openstack-dashboard -y
+
+# Tạo file direct
+filehtml=/var/www/html/index.html
+touch $filehtml
+cat << EOF >> $filehtml
+<html>
+<head>
+<META HTTP-EQUIV="Refresh" Content="0.5; URL=http://10.10.20.99/dashboard">
+</head>
+<body>
+<center> <h1>Redirecting to OpenStack Dashboard</h1> </center>
+</body>
+</html>
+EOF
+
+# Backup cấu hình
+cp /etc/openstack-dashboard/local_settings /etc/openstack-dashboard/local_settings.org
+
+# Thay đổi cấu hình trong file /etc/openstack-dashboard/local_settings
+ALLOWED_HOSTS = ['*',]
+OPENSTACK_API_VERSIONS = {
+    "identity": 3,
+    "image": 2,
+    "volume": 2,
+}
+OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True
+OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = 'Default'
+
+# Lưu ý thêm SESSION_ENGINE vào trên dòng CACHE như bên dưới
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+CACHES = {
+    'default': {
+         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+         'LOCATION': ['192.168.20.11:11211','192.168.20.12:11211','192.168.20.13:11211',]
+    }
+}
+OPENSTACK_HOST = "10.10.20.99"
+OPENSTACK_KEYSTONE_URL = "http://192.168.20.99:5000/v3"
+OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"
+
+# Lưu ý: Nếu chỉ sử dụng provider, chỉnh sửa các thông số sau
+OPENSTACK_NEUTRON_NETWORK = {
+    'enable_router': False,
+    'enable_quotas': False,
+    'enable_ipv6': False,
+    'enable_distributed_router': False,
+    'enable_ha_router': False,
+    'enable_fip_topology_check': False,
+}
+
+TIME_ZONE = "Asia/Ho_Chi_Minh"
+
+# Scp sang 2 node còn lại
+Lưu ý: Yêu cầu đã thực hiện xong bước xóa cấu hình dashboard trên 2 node còn lại
+
+scp /etc/openstack-dashboard/local_settings root@controller02:/etc/openstack-dashboard/
+scp /etc/openstack-dashboard/local_settings root@controller03:/etc/openstack-dashboard/
+
+# Thêm vào file /etc/httpd/conf.d/openstack-dashboard.conf
+echo "WSGIApplicationGroup %{GLOBAL}" >> /etc/httpd/conf.d/openstack-dashboard.conf
+
+# Restart lại httpd
+systemctl restart httpd.service memcached.service
+
+
+# Cấu hình Cinder
+
+# Tao db
+
+mysql -u root -pApnet2018
+CREATE DATABASE cinder;
+GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' \
+  IDENTIFIED BY 'Apnet2018';
+GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' \
+  IDENTIFIED BY 'Apnet2018';  
+
+# Tao endpoint
+
+openstack user create --domain default --password Apnet2018 cinder
+openstack role add --project service --user cinder admin
+openstack service create --name cinderv2 \
+  --description "OpenStack Block Storage" volumev2
+  
+openstack service create --name cinderv3 \
+  --description "OpenStack Block Storage" volumev3
+  
+openstack endpoint create --region RegionOne \
+  volumev2 public http://192.168.20.99:8776/v2/%\(project_id\)s
+openstack endpoint create --region RegionOne \
+  volumev2 internal http://192.168.20.99:8776/v2/%\(project_id\)s
+openstack endpoint create --region RegionOne \
+  volumev2 admin http://192.168.20.99:8776/v2/%\(project_id\)s
+openstack endpoint create --region RegionOne \
+  volumev3 public http://192.168.20.99:8776/v3/%\(project_id\)s
+openstack endpoint create --region RegionOne \
+  volumev3 internal http://192.168.20.99:8776/v3/%\(project_id\)s
+openstack endpoint create --region RegionOne \
+  volumev3 admin http://192.168.20.99:8776/v3/%\(project_id\)s
+
+# Tai package
+yum install openstack-cinder -y
+
+# Sửa cấu hình cinder
+ 
+cp /etc/cinder/cinder.conf /etc/cinder/cinder.conf.bak 
+rm -rf /etc/cinder/cinder.conf
+
+cat << EOF >> /etc/cinder/cinder.conf
+[DEFAULT]
+my_ip = 192.168.20.11
+transport_url = rabbit://openstack:Apnet2018@192.168.20.11:5672,openstack:Apnet2018@192.168.20.12:5672,openstack:Apnet2018@192.168.20.13:5672
+auth_strategy = keystone
+osapi_volume_listen = 192.168.20.11
+[backend]
+[backend_defaults]
+[barbican]
+[brcd_fabric_example]
+[cisco_fabric_example]
+[coordination]
+[cors]
+[database]
+connection = mysql+pymysql://cinder:Apnet2018@192.168.20.99/cinder
+[fc-zone-manager]
+[healthcheck]
+[key_manager]
+[keystone_authtoken]
+auth_uri = http://192.168.20.99:5000
+auth_url = http://192.168.20.99:35357
+memcached_servers = 192.168.20.11:11211,192.168.20.12:11211,192.168.20.13:11211
+auth_type = password
+project_domain_id = default
+user_domain_id = default
+project_name = service
+username = cinder
+password = Apnet2018
+[matchmaker_redis]
+[nova]
+[oslo_concurrency]
+lock_path = /var/lib/cinder/tmp
+[oslo_messaging_amqp]
+[oslo_messaging_kafka]
+[oslo_messaging_notifications]
+[oslo_messaging_rabbit]
+rabbit_retry_interval = 1
+rabbit_retry_backoff = 2
+amqp_durable_queues = true
+rabbit_ha_queues = true
+[oslo_messaging_zmq]
+[oslo_middleware]
+[oslo_policy]
+[oslo_reports]
+[oslo_versionedobjects]
+[profiler]
+[service_user]
+[ssl]
+[vault]
+EOF 
+
+# Phân quyền
+
+chown root:cinder /etc/cinder/cinder.conf
+
+# Sync db
+
+su -s /bin/sh -c "cinder-manage db sync" cinder
+
+# chinh sua file /etc/nova/nova.conf
+
+[cinder]
+os_region_name = RegionOne
+
+# Restart lai dich vu nova api 
+
+systemctl restart openstack-nova-api.service
+
+# Enable va start dich vu
+
+systemctl enable openstack-cinder-api.service openstack-cinder-volume.service openstack-cinder-scheduler.service
+systemctl start openstack-cinder-api.service openstack-cinder-volume.service openstack-cinder-scheduler.service

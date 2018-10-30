@@ -1,0 +1,60 @@
+#!/bin/sh
+source utils.sh
+
+# Install and configure a compute node for Ubuntu
+# Install and configure components
+apt install -y nova-compute
+
+# Edit the /etc/nova/nova.conf file and complete
+# configure RabbitMQ message queue access
+add_config /etc/nova/nova.conf DEFAULT transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
+
+# configure Identity service access
+add_config /etc/nova/nova.conf api auth_strategy keystone
+add_config /etc/nova/nova.conf keystone_authtoken auth_url http://{{ keystone.internal_url }}/v3
+add_config /etc/nova/nova.conf keystone_authtoken memcached_servers {{ memcached.listen }}:11211
+add_config /etc/nova/nova.conf keystone_authtoken auth_type password
+add_config /etc/nova/nova.conf keystone_authtoken project_domain_name default
+add_config /etc/nova/nova.conf keystone_authtoken user_domain_name default
+add_config /etc/nova/nova.conf keystone_authtoken project_name service
+add_config /etc/nova/nova.conf keystone_authtoken username nova
+add_config /etc/nova/nova.conf keystone_authtoken password {{ compute.password }}
+
+# configure the my_ip option to use the management interface IP address of the controller node
+add_config /etc/nova/nova.conf DEFAULT my_ip {{ ansible_host }}
+
+# enable support for the Networking service
+add_config /etc/nova/nova.conf DEFAULT use_neutron true
+add_config /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+
+# configure the VNC proxy to use the management interface IP address of the controller node
+add_config /etc/nova/nova.conf vnc enabled true
+add_config /etc/nova/nova.conf vnc server_listen '$my_ip'
+add_config /etc/nova/nova.conf vnc server_proxyclient_address '$my_ip'
+add_config /etc/nova/nova.conf vnc novncproxy_base_url http://{{ novncproxy_base_url_listen }}/vnc_auto.html
+
+# configure the location of the Image service API
+add_config /etc/nova/nova.conf glance api_servers http://{{ glance.internal_url }}
+
+# configure the lock path
+add_config /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
+
+# configure the Placement API
+add_config /etc/nova/nova.conf placement region_name RegionOne
+add_config /etc/nova/nova.conf placement project_domain_name Default
+add_config /etc/nova/nova.conf placement project_name service
+add_config /etc/nova/nova.conf placement auth_type password
+add_config /etc/nova/nova.conf placement user_domain_name Default
+add_config /etc/nova/nova.conf placement auth_url http://{{ keystone.internal_url }}/v3
+add_config /etc/nova/nova.conf placement username placement
+add_config /etc/nova/nova.conf placement password {{ placement.password }}
+
+# Finalize installation
+# Determine whether your compute node supports hardware acceleration for virtual machines
+vmx_svm=`egrep -c '(vmx|svm)' /proc/cpuinfo`
+if [[ $vmx_svm -eq 0 ]]; then
+    add_config /etc/nova/nova-compute.conf libvirt virt_type qemu
+fi
+
+# Restart the Compute service
+service nova-compute restart

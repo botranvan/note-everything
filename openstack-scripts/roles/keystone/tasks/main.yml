@@ -1,0 +1,29 @@
+---
+# tasks file for roles/keystone
+- name: Included var from controller_required
+  include_vars:
+    file: ../../{{ item }}/defaults/main.yml
+  with_items:
+    - controller_required
+  when:
+    - in_action == 'controller'
+  tags: ['copy_script']
+
+- name: Copy keystone script to remote
+  template:
+    dest: '{{ dest_scripts }}/keystone.sh'
+    force: yes
+    mode: 0755
+    src: keystone.sh.j2
+  when:
+    - in_action == 'controller'
+  tags: ['copy_script']
+
+- name: Installing keystone service
+  shell: sh keystone.sh
+  args:
+    chdir: '{{ dest_scripts }}'
+  when:
+    - in_action == 'controller'
+  tags: ['install_keystone']
+

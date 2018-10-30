@@ -1,0 +1,22 @@
+TYPE="Ethernet"
+BOOTPROTO=none
+DEFROUTE="yes"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="yes"
+IPV6_AUTOCONF="yes"
+IPV6_DEFROUTE="yes"
+IPV6_FAILURE_FATAL="no"
+IPV6_ADDR_GEN_MODE="stable-privacy"
+NAME="ens33"
+UUID="b6422fd0-7e49-47b2-aabe-8109b062dd77"
+DEVICE="ens33"
+ONBOOT="yes"
+IPADDR=172.16.69.72
+PREFIX=24
+GATEWAY=172.16.69.2
+IPV6_PEERDNS=yes
+IPV6_PEERROUTES=yes
+
+
+Documents:
+        https://www.centos.org/docs/5/html/5.1/Deployment_Guide/ch-networkscripts.html

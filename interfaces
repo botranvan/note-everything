@@ -1,0 +1,40 @@
+auto lo
+iface lo inet loopback
+
+
+
+# external network
+auto ens33
+iface ens33 inet static
+address 172.16.69.52
+netmask 255.255.255.0
+network 172.16.69.0
+gateway 172.16.69.2
+#dns-nameservers 172.16.69.2 8.8.8.8
+#dns-domain lvs.info
+#dns-search lvs.info
+
+# internal network
+auto ens34
+iface ens34 inet static
+address 10.10.10.52
+netmask 255.255.255.0
+network 10.10.10.0
+
+auto ens35
+iface ens35 inet static
+address 10.10.20.52
+netmask 255.255.255.0
+network 10.10.20.0
+
+auto ens36
+iface ens36 inet static
+address 192.168.19.52
+netmask 255.255.255.0
+network 192.168.19.0
+
+
+
+Documents:
+	https://www.swiftstack.com/docs/install/configure_networking.html
+	https://help.ubuntu.com/lts/serverguide/network-configuration.html

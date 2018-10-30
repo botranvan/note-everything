@@ -1,0 +1,85 @@
+#!/bin/sh
+source utils.sh
+
+# Prerequisites
+mysql -e \
+"CREATE DATABASE glance;
+GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' \
+IDENTIFIED BY '{{ database_glance_password }}';
+GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' \
+IDENTIFIED BY '{{ database_glance_password }}';
+"
+
+source /root/admin-openrc
+
+# Create the glance user
+openstack user create --domain default glance --password {{ glance.password }}
+
+# Add the admin role to the glance user and service project
+openstack role add --project service --user glance admin
+
+# Create the glance service entity
+openstack service create --name glance --description "OpenStack Image" image
+
+# Create the Image service API endpoints
+openstack endpoint create --region RegionOne image admin http://{{ glance.admin_url }}
+openstack endpoint create --region RegionOne image internal http://{{ glance.internal_url }}
+openstack endpoint create --region RegionOne image public http://{{ glance.public_url }}
+
+
+# Install and configure components
+apt install -y glance
+
+# Edit the /etc/glance/glance-api.conf
+# configure database access
+add_config /etc/glance/glance-api.conf database connection mysql+pymysql://glance:{{ database_glance_password }}@{{ mysql_database.listen }}/glance
+
+# configure Identity service access
+add_config /etc/glance/glance-api.conf keystone_authtoken www_authenticate_uri http://{{ keystone.internal_url}}
+add_config /etc/glance/glance-api.conf keystone_authtoken auth_url http://{{ keystone.internal_url}}
+add_config /etc/glance/glance-api.conf keystone_authtoken memcached_servers {{ memcached.listen }}:11211
+add_config /etc/glance/glance-api.conf keystone_authtoken auth_type password
+add_config /etc/glance/glance-api.conf keystone_authtoken project_domain_name Default
+add_config /etc/glance/glance-api.conf keystone_authtoken user_domain_name Default
+add_config /etc/glance/glance-api.conf keystone_authtoken project_name service
+add_config /etc/glance/glance-api.conf keystone_authtoken username glance
+add_config /etc/glance/glance-api.conf keystone_authtoken password {{ glance.password }}
+add_config /etc/glance/glance-api.conf paste_deploy flavor keystone
+
+# configure the local file system store and location of image files
+add_config /etc/glance/glance-api.conf glance_store stores file,http
+add_config /etc/glance/glance-api.conf glance_store default_store file
+add_config /etc/glance/glance-api.conf glance_store filesystem_store_datadir /var/lib/glance/images/
+
+# Edit the /etc/glance/glance-registry.conf file
+# configure database access
+add_config /etc/glance/glance-registry.conf database connection mysql+pymysql://glance:{{ database_glance_password }}@{{ mysql_database.listen }}/glance
+
+# configure Identity service access
+add_config /etc/glance/glance-registry.conf keystone_authtoken www_authenticate_uri http://{{ keystone.internal_url}}
+add_config /etc/glance/glance-registry.conf keystone_authtoken auth_url http://{{ keystone.internal_url}}
+add_config /etc/glance/glance-registry.conf keystone_authtoken memcached_servers {{ memcached.listen }}:11211
+add_config /etc/glance/glance-registry.conf keystone_authtoken auth_type password
+add_config /etc/glance/glance-registry.conf keystone_authtoken project_domain_name Default
+add_config /etc/glance/glance-registry.conf keystone_authtoken user_domain_name Default
+add_config /etc/glance/glance-registry.conf keystone_authtoken project_name service
+add_config /etc/glance/glance-registry.conf keystone_authtoken username glance
+add_config /etc/glance/glance-registry.conf keystone_authtoken password {{ glance.password }}
+add_config /etc/glance/glance-registry.conf paste_deploy flavor keystone
+
+# Populate the Image service database
+su -s /bin/sh -c "glance-manage db_sync" glance
+
+# Finalize installation
+service glance-registry restart
+service glance-api restart
+
+# Download the source image
+wget http://download.cirros-cloud.net/0.4.0/cirros-0.4.0-x86_64-disk.img
+
+# Upload the image to the Image service using the QCOW2 disk format, bare
+# container format, and public visibility so all projects can access it
+openstack image create "cirros" --file cirros-0.4.0-x86_64-disk.img --disk-format qcow2 --container-format bare --public
+
+# Confirm upload of the image and validate attributes
+openstack image list

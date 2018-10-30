@@ -1,0 +1,79 @@
+#!/bin/sh
+source utils.sh
+
+# Prerequisites
+# To create the database
+mysql -e \
+"
+CREATE DATABASE cinder;
+GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' IDENTIFIED BY '{{ database_cinder_password }}';
+GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' IDENTIFIED BY '{{ database_cinder_password }}';
+"
+
+# Source the admin credentials to gain access to admin-only CLI commands
+source /root/admin-openrc
+
+# To create the service credentials
+openstack user create --domain default --password {{ cinder.password }} cinder
+
+# Add the admin role to the cinder user
+openstack role add --project service --user cinder admin
+
+# Create the cinderv2 and cinderv3 service entities
+openstack service create --name cinderv2 --description "OpenStack Block Storage" volumev2
+openstack service create --name cinderv3 --description "OpenStack Block Storage" volumev3
+
+# Create the Block Storage service API endpoints
+openstack endpoint create --region RegionOne volumev2 admin http://{{ cinder.admin_url }}/v2/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev2 internal http://{{ cinder.internal_url }}/v2/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev2 public http://{{ cinder.public_url }}/v2/%\(project_id\)s
+
+openstack endpoint create --region RegionOne volumev3 admin http://{{ cinder.admin_url }}/v3/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev3 internal http://{{ cinder.internal_url }}/v3/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev3 public http://{{ cinder.public_url }}/v3/%\(project_id\)s
+
+
+# Install and configure components
+# Install the packages
+apt install -y cinder-api cinder-scheduler
+
+# Edit the /etc/cinder/cinder.conf file
+# configure database access
+add_config /etc/cinder/cinder.conf database connection mysql+pymysql://cinder:{{ database_cinder_password }}@{{ mysql_database.listen }}/cinder
+
+# configure RabbitMQ message queue access
+add_config /etc/cinder/cinder.conf DEFAULT transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
+
+# configure Identity service acces
+add_config /etc/cinder/cinder.conf DEFAULT auth_strategy keystone
+add_config /etc/cinder/cinder.conf keystone_authtoken www_authenticate_uri http://{{ keystone.internal_url }}
+add_config /etc/cinder/cinder.conf keystone_authtoken auth_url http://{{ keystone.internal_url }}
+add_config /etc/cinder/cinder.conf keystone_authtoken memcached_servers {{ memcached.listen }}:11211
+add_config /etc/cinder/cinder.conf keystone_authtoken auth_type password
+add_config /etc/cinder/cinder.conf keystone_authtoken project_domain_id default
+add_config /etc/cinder/cinder.conf keystone_authtoken user_domain_id default
+add_config /etc/cinder/cinder.conf keystone_authtoken project_name service
+add_config /etc/cinder/cinder.conf keystone_authtoken username cinder
+add_config /etc/cinder/cinder.conf keystone_authtoken password {{ cinder.password }}
+
+# configure the my_ip option to use the management interface IP address of the controller node
+add_config /etc/cinder/cinder.conf DEFAULT my_ip {{ ansible_host }}
+
+# Populate the Block Storage database
+add_config /etc/cinder/cinder.conf oslo_concurrency lock_path /var/lib/cinder/tmp
+
+
+# Populate the Block Storage database
+su -s /bin/sh -c "cinder-manage db sync" cinder
+
+# Configure Compute to use Block Storage
+# Edit the /etc/nova/nova.conf file
+add_config /etc/nova/nova.conf cinder os_region_name RegionOne
+
+# Finalize installation
+# Restart the Compute API service
+service nova-api restart
+
+# Restart the Block Storage services
+service cinder-scheduler restart
+service apache2 restart

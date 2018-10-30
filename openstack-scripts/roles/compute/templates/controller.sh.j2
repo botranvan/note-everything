@@ -1,0 +1,119 @@
+#!/bin/sh
+source utils.sh
+
+# Install and configure controller node for Ubuntu
+mysql -e \
+"CREATE DATABASE nova_api;
+CREATE DATABASE nova;
+CREATE DATABASE nova_cell0;
+CREATE DATABASE placement;
+GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' IDENTIFIED BY '{{ database_nova_password }}';
+GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' IDENTIFIED BY '{{ database_nova_password }}';
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '{{ database_nova_password }}';
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '{{ database_nova_password }}';
+GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' IDENTIFIED BY '{{ database_nova_password }}';
+GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' IDENTIFIED BY '{{ database_nova_password }}';
+GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'localhost' IDENTIFIED BY '{{ database_placement_password }}';
+GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'%' IDENTIFIED BY '{{ database_placement_password }}';
+"
+# Source the admin credentials to gain access to admin-only CLI commands
+source /root/admin-openrc
+
+# Create the Compute service credentials
+# Create the nova user
+openstack user create --domain default nova --password {{ compute.password }}
+
+# Add the admin role to the nova user
+openstack role add --project service --user nova admin
+
+# Create the nova service entity
+openstack service create --name nova --description "OpenStack Compute" compute
+
+# Create the Compute API service endpoints
+openstack endpoint create --region RegionOne compute admin http://{{ compute.admin_url }}/v2.1
+openstack endpoint create --region RegionOne compute internal http://{{ compute.internal_url }}/v2.1
+openstack endpoint create --region RegionOne compute public http://{{ compute.public_url }}/v2.1
+
+# Create a Placement service user
+openstack user create --domain default placement --password {{ placement.password }}
+
+# Add the Placement user to the service project with the admin role
+openstack role add --project service --user placement admin
+
+# Create the Placement API entry in the service catalog
+openstack service create --name placement --description "Placement API" placement
+
+# Create the Placement API service endpoints
+openstack endpoint create --region RegionOne placement admin http://{{ placement.admin_url }}
+openstack endpoint create --region RegionOne placement internal http://{{ placement.internal_url }}
+openstack endpoint create --region RegionOne placement public http://{{ placement.public_url }}
+
+# Install and configure components
+apt install -y nova-api nova-conductor nova-novncproxy nova-scheduler nova-placement-api
+
+# Edit the /etc/nova/nova.conf file and complete
+# configure database access
+add_config /etc/nova/nova.conf api_database connection mysql+pymysql://nova:{{ database_nova_password }}@{{ mysql_database.listen }}/nova_api
+add_config /etc/nova/nova.conf database connection mysql+pymysql://nova:{{ database_nova_password }}@{{ mysql_database.listen }}/nova
+add_config /etc/nova/nova.conf placement_database connection mysql+pymysql://placement:{{ database_placement_password }}@{{ mysql_database.listen }}/placement
+
+# configure RabbitMQ message queue access
+add_config /etc/nova/nova.conf DEFAULT transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
+
+# configure the my_ip option to use the management interface IP address of the controller node
+add_config /etc/nova/nova.conf DEFAULT my_ip {{ ansible_host }}
+
+# enable support for the Networking service
+add_config /etc/nova/nova.conf DEFAULT use_neutron true
+add_config /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+
+# configure Identity service access
+add_config /etc/nova/nova.conf api auth_strategy keystone
+add_config /etc/nova/nova.conf keystone_authtoken auth_url http://{{ keystone.internal_url }}/v3
+add_config /etc/nova/nova.conf keystone_authtoken memcached_servers {{ memcached.listen }}:11211
+add_config /etc/nova/nova.conf keystone_authtoken auth_type password
+add_config /etc/nova/nova.conf keystone_authtoken project_domain_name default
+add_config /etc/nova/nova.conf keystone_authtoken user_domain_name default
+add_config /etc/nova/nova.conf keystone_authtoken project_name service
+add_config /etc/nova/nova.conf keystone_authtoken username nova
+add_config /etc/nova/nova.conf keystone_authtoken password {{ compute.password }}
+
+# configure the VNC proxy to use the management interface IP address of the controller node
+add_config /etc/nova/nova.conf vnc enabled true
+add_config /etc/nova/nova.conf vnc server_listen '$my_ip'
+add_config /etc/nova/nova.conf vnc server_proxyclient_address '$my_ip'
+
+# configure the location of the Image service API
+add_config /etc/nova/nova.conf glance api_servers http://{{ glance.internal_url }}
+
+# configure the lock path
+add_config /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
+
+# configure the Placement API
+add_config /etc/nova/nova.conf placement region_name RegionOne
+add_config /etc/nova/nova.conf placement project_domain_name Default
+add_config /etc/nova/nova.conf placement project_name service
+add_config /etc/nova/nova.conf placement auth_type password
+add_config /etc/nova/nova.conf placement user_domain_name Default
+add_config /etc/nova/nova.conf placement auth_url http://{{ keystone.internal_url }}/v3
+add_config /etc/nova/nova.conf placement username placement
+add_config /etc/nova/nova.conf placement password {{ placement.password }}
+
+# Populate databases
+su -s /bin/sh -c "nova-manage api_db sync" nova
+su -s /bin/sh -c "nova-manage cell_v2 map_cell0" nova
+su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
+su -s /bin/sh -c "nova-manage db sync" nova
+su -s /bin/sh -c "nova-manage cell_v2 list_cells" nova
+
+# Finalize installation
+service nova-api restart
+service nova-scheduler restart
+service nova-conductor restart
+service nova-novncproxy restart
+
+# Add the compute node to the cell database
+source /root/admin-openrc
+openstack compute service list --service nova-compute
+su -s /bin/sh -c "nova-manage cell_v2 discover_hosts --verbose" nova
+add_config /etc/nova/nova.conf scheduler discover_hosts_in_cells_interval 300

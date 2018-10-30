@@ -1,0 +1,117 @@
+#!/bin/sh
+source utils.sh
+
+# Prerequisites
+mysql -e \
+"CREATE DATABASE keystone;
+GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY '{{ database_keystone_password }}';
+GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY '{{ database_keystone_password }}';
+"
+
+# Install and configure components
+apt install -y keystone  apache2 libapache2-mod-wsgi
+add_config /etc/keystone/keystone.conf database connection mysql+pymysql://keystone:{{ database_keystone_password }}@{{ mysql_database.listen }}/keystone
+add_config /etc/keystone/keystone.conf token provider fernet
+
+# Populate the Identity service database
+su -s /bin/sh -c "keystone-manage db_sync" keystone
+
+# Initialize Fernet key repositories
+keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+
+# Bootstrap the Identity service
+keystone-manage bootstrap --bootstrap-password {{ keystone.password }} \
+--bootstrap-admin-url http://{{ keystone.admin_url }}/v3/ \
+--bootstrap-internal-url http://{{ keystone.internal_url }}/v3/ \
+--bootstrap-public-url http://{{ keystone.public_url }}/v3/ \
+--bootstrap-region-id RegionOne
+
+# Configure the Apache HTTP serve
+sed -i '1s/^/ServerName {{ keystone.public_url }}\n/g' /etc/apache2/apache2.conf
+sed -i '2s/^/ServerName {{ keystone.internal_url }}\n/g' /etc/apache2/apache2.conf
+
+# Finalize the installation
+service apache2 restart
+
+# Create OpenStack client environment scripts
+cat << EOF > /root/admin-openrc
+export OS_AUTH_URL=http://{{ keystone.admin_url }}/v3
+export OS_IDENTITY_API_VERSION=3
+export OS_PASSWORD={{ keystone.password }}
+export OS_PROJECT_DOMAIN_NAME=Default
+export OS_PROJECT_NAME=admin
+export OS_USER_DOMAIN_NAME=Default
+export OS_USERNAME=admin
+
+EOF
+
+# Gain a access permission
+chmod a+x /root/admin-openrc
+source /root/admin-openrc
+
+# Create a domain, projects, users, and roles
+{% if domains is defined %}
+{% for domain in domains %}
+openstack domain create --description {{ domain.description }} {{ domain.name }}
+{% endfor %}
+{% endif %}
+
+{% if projects is defined %}
+{% for project in projects %}
+openstack project create --domain {{ project.domain }} --description {{ project.description }} {{ project.name }}
+{% endfor %}
+{% endif %}
+
+{% if users is defined %}
+{% for user in users %}
+{% if user.domain is defined %}
+openstack user create --domain {{ user.domain }} {{ user.name }} --password {{ user.password }}
+{% else %}
+openstack user create {{ user.name }} --password {{ user.password }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if openstack_roles is defined %}
+{% for role in openstack_roles %}
+{% if role.domain is defined %}
+openstack role create {{ role.name }} --or-show --domain {{ role.domain }}
+{% else %}
+openstack role create {{ role.name }} --or-show
+{% endif %}
+{% if role.assign is defined %}
+{% for item in role.assign %}
+{% if item.domain is defined %}
+openstack role add --domain {{ item.domain }} --user {{ item.user }} {{ role.name }}
+{% endif %}
+{% if item.project is defined %}
+openstack role add --project {{ item.project }} --user {{ item.user }} {{ role.name }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+
+{% if accounts_scripts is defined %}
+{% for user in accounts_scripts %}
+# Create OpenStack client environment scripts
+cat << EOF > /root/{{ user.username }}-openrc
+export OS_AUTH_URL=http://{{ user.auth_url }}/v3
+export OS_IDENTITY_API_VERSION=3
+export OS_IMAGE_API_VERSION=2
+export OS_PASSWORD={{ user.password }}
+export OS_PROJECT_DOMAIN_NAME={{ user.domain_name }}
+export OS_PROJECT_NAME={{ user.project_name }}
+export OS_USER_DOMAIN_NAME={{ user.user_domain_name }}
+export OS_USERNAME={{ user.username }}
+
+EOF
+
+# Give permission
+chmod a+x /root/{{ user.username }}-openrc
+
+
+{% endfor %}
+{% endif %}

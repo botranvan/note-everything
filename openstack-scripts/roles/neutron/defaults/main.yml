@@ -1,0 +1,11 @@
+---
+# defaults file for neutron
+dest_scripts: /root/openstack-scripts
+
+database_neutron_password: Welcome123
+
+neutron:
+  password: Welcome123
+  admin_url: 10.5.9.130:9696
+  internal_url: 10.5.9.130:9696
+  public_url: 10.5.9.130:9696

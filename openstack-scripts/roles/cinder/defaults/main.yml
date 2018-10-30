@@ -1,0 +1,16 @@
+---
+# defaults file for cinder
+dest_scripts: /root/openstack-scripts
+
+database_cinder_password: Welcome123
+
+cinder:
+  password: Welcome123
+  admin_url: 10.5.9.130:8776
+  internal_url: 10.5.9.130:8776
+  public_url: 10.5.9.130:8776
+  hostname: lvm
+
+cinder_backend_type: lvm
+physical_volume: /dev/vdb
+rbd_secret_uuid: 54b2c9b0-ae74-4f62-8d72-62bab72302d9

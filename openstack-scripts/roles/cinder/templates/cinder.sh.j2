@@ -1,0 +1,82 @@
+#!/bin/sh
+source utils.sh
+
+# Install and configure a storage node
+# Prerequisites
+apt install -y lvm2 thin-provisioning-tools
+
+{% if cinder_backend_type == 'lvm' %}
+# Create the LVM physical volume
+pvcreate {{ physical_volume }}
+
+# Create the LVM volume group cinder-volumes
+vgcreate cinder-volumes {{ physical_volume }}
+{% endif %}
+
+# Install and configure components
+# Install the packages
+apt install -y cinder-volume
+
+# Edit the /etc/cinder/cinder.conf file
+# configure database access
+add_config /etc/cinder/cinder.conf database connection mysql+pymysql://cinder:{{ database_cinder_password }}@{{ mysql_database.listen }}/cinder
+
+# configure RabbitMQ message queue access
+add_config /etc/cinder/cinder.conf DEFAULT transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
+
+{% if cinder_backend_type == 'ceph' %}
+# configure CEPH service
+add_config /etc/cinder/cinder.conf DEFAULT enabled_backends ceph
+add_config /etc/cinder/cinder.conf DEFAULT glance_api_version 2
+add_config /etc/cinder/cinder.conf DEFAULT host ceph
+add_config /etc/cinder/cinder.conf ceph volume_driver cinder.volume.drivers.rbd.RBDDriver
+add_config /etc/cinder/cinder.conf ceph volume_backend_name ceph
+add_config /etc/cinder/cinder.conf ceph rbd_pool volumes
+add_config /etc/cinder/cinder.conf ceph rbd_ceph_conf /etc/ceph/ceph.conf
+add_config /etc/cinder/cinder.conf ceph rbd_flatten_volume_from_snapshot false
+add_config /etc/cinder/cinder.conf ceph rbd_max_clone_depth 5
+add_config /etc/cinder/cinder.conf ceph rbd_store_chunk_size 4
+add_config /etc/cinder/cinder.conf ceph rados_connect_timeout -1
+add_config /etc/cinder/cinder.conf ceph rbd_user cinder
+add_config /etc/cinder/cinder.conf ceph rbd_secret_uuid {{ rbd_secret_uuid }}
+add_config /etc/cinder/cinder.conf ceph report_discard_supported true
+{% endif %}
+
+# configure Identity service access
+add_config /etc/cinder/cinder.conf DEFAULT auth_strategy keystone
+{% if cinder_backend_type == 'ceph' %}
+add_config /etc/cinder/cinder.conf DEFAULT host {{ cinder.hostname | default('cinder') }}
+{% endif %}
+add_config /etc/cinder/cinder.conf keystone_authtoken auth_uri http://{{ keystone.internal_url }}
+add_config /etc/cinder/cinder.conf keystone_authtoken auth_url http://{{ keystone.internal_url }}
+add_config /etc/cinder/cinder.conf keystone_authtoken memcached_servers {{ memcached.listen }}:11211
+add_config /etc/cinder/cinder.conf keystone_authtoken auth_type password
+add_config /etc/cinder/cinder.conf keystone_authtoken project_domain_id default
+add_config /etc/cinder/cinder.conf keystone_authtoken user_domain_id default
+add_config /etc/cinder/cinder.conf keystone_authtoken project_name service
+add_config /etc/cinder/cinder.conf keystone_authtoken username cinder
+add_config /etc/cinder/cinder.conf keystone_authtoken password {{ cinder.password }}
+
+# configure the my_ip option
+add_config /etc/cinder/cinder.conf DEFAULT my_ip {{ ansible_host }}
+
+{% if cinder_backend_type == 'lvm' %}
+# enable the LVM back end
+add_config /etc/cinder/cinder.conf DEFAULT enabled_backends lvm
+
+add_config /etc/cinder/cinder.conf lvm volume_driver cinder.volume.drivers.lvm.LVMVolumeDriver
+add_config /etc/cinder/cinder.conf lvm volume_group cinder-volumes
+add_config /etc/cinder/cinder.conf lvm iscsi_protocol iscsi
+add_config /etc/cinder/cinder.conf lvm iscsi_helper tgtadm
+{% endif %}
+
+# configure the location of the Image service API
+add_config /etc/cinder/cinder.conf DEFAULT glance_api_servers http://{{ glance.internal_url }}
+
+# configure the lock path
+add_config /etc/cinder/cinder.conf oslo_concurrency lock_path /var/lib/cinder/tmp
+
+# Finalize installation
+# Restart the Block Storage volume service including its dependencies
+service tgt restart
+service cinder-volume restart

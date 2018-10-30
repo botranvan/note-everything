@@ -1,0 +1,29 @@
+# Script used to check if HAProxy is running
+vrrp_script check_haproxy {
+    script "killall -0 haproxy"
+    interval 2
+    weight 2
+}
+# Virtual interface
+# The priority specifies the order in which the assigned interface to take over in a failover
+vrrp_instance VI_01 {
+    state MASTER
+    interface ens33
+    virtual_router_id 1
+    priority 101 # 101 on master, 100 on backup
+# The virtual ip address shared between the two loadbalancers
+    virtual_ipaddress {
+        172.16.69.254/24
+    }
+    track_script {
+        check_haproxy
+    }
+}
+
+ipvsadm -A -t 172.16.69.254:80 -s rr
+ipvsadm -a -t 172.16.69.254:80 -r 10.10.10.20:80 -g
+ipvsadm -a -t 172.16.69.254:80 -r 10.10.10.30:80 -g
+
+iptables -t nat -A PREROUTING -d 172.16.69.254 -j REDIRECT
+00:50:56:30:FC:C4
+ipvsadm -S >> /etc/ipvsadm.rules

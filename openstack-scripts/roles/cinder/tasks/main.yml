@@ -1,0 +1,17 @@
+---
+# tasks file for cinder
+- name: Included var from controller_required, keystone, glance
+  include_vars:
+    file: ../../{{ item }}/defaults/main.yml
+  with_items:
+    - keystone
+    - glance
+    - controller_required
+  tags: ['copy_script']
+
+- import_tasks: controller.yml
+  when:
+    - in_action == 'controller'
+- import_tasks: cinder.yml
+  when:
+    - in_action == 'cinder'

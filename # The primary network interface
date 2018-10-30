@@ -1,0 +1,41 @@
+# The primary network interface
+auto ens3
+iface ens3 inet static
+address 192.168.57.11
+netmask 255.255.255.0
+network 192.168.57.0
+dns-nameservers 8.8.8.8, 1.1.1.1
+
+
+# The ens8 network interface
+auto ens8
+iface ens8 inet static
+address 10.0.0.11
+netmask 255.255.255.0
+network 10.0.0.0
+dns-nameservers 8.8.8.8, 1.1.1.1
+gateway 10.0.0.1
+
+# The ens9 network interface
+auto ens9
+iface ens9 inet static
+address 203.0.113.11
+netmask 255.255.255.0
+network 203.0.113.0
+dns-nameservers 8.8.8.8, 1.1.1.1
+
+
+# The ens10 network interface
+auto ens10
+iface ens10 inet static
+address 10.0.1.11
+netmask 255.255.255.0
+network 10.0.1.0
+dns-nameservers 8.8.8.8, 1.1.1.1
+
+
+
+# sed -i s/1/2/g /etc/hostname
+# sed -i s/\.11$/.13/g /etc/network/interfaces
+# sed -i s/controller01/controller02/g /etc/default/etcd
+# sed -i s/\.11$/.13/g /etc/memcached.conf

@@ -1,0 +1,3 @@
+---
+# defaults file for roles/requirements
+dest_scripts: /root/openstack-scripts

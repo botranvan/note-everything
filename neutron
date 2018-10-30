@@ -1,0 +1,15 @@
+service neutron-openvswitch-agent stop && service neutron-dhcp-agent stop && service neutron-metadata-agent stop && service neutron-ovs-cleanup stop
+ovs-vsctl del-br br-int -- del-br br-provider -- del-br br-tun -- add-br br-provider -- add-port br-provider ens3
+
+
+service neutron-openvswitch-agent stop && service neutron-l3-agent stop && service neutron-metadata-agent stop && service neutron-ovs-cleanup stop
+ovs-vsctl del-br br-int -- del-br br-provider -- del-br br-tun -- add-br br-provider
+
+
+openstack network create --share --external --default --provider-physical-network provider --provider-network-type vlan --provider-segment 57 net_provider_vlan.57
+openstack subnet create --network net_provider_vlan.57 --subnet-range 192.168.57.0/24 --gateway 192.168.57.1 --dns-nameserver 1.1.1.1 --dns-nameserver 8.8.8.8 subnet_provider_vlan.57
+openstack network create net_self_192.168.2
+openstack subnet create --network net_self_192.168.2 --subnet-range 192.168.2.0/24 --gateway 192.168.2.1 --dns-nameserver 1.1.1.1 --dns-nameserver 8.8.8.8 subnet_self_192.168.2
+openstack router create router_192.168.2
+openstack router add subnet router_192.168.2 subnet_self_192.168.2
+openstack router set --external-gateway net_provider_vlan.57 router_192.168.2

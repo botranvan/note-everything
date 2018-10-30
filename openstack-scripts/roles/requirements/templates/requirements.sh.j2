@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Update repository
+apt update -y && apt dist-upgrade -y
+
+# Enable the Ubuntu Cloud Archive pocket as needed
+apt install -y software-properties-common
+add-apt-repository -y cloud-archive:rocky
+
+# Finalize the installation
+apt update -y && apt dist-upgrade -y
+
+# Install the OpenStack client
+apt install -y python-openstackclient wget crudini vim byobu curl

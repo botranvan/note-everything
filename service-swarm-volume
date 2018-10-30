@@ -1,0 +1,6 @@
+docker service create --name my_web \
+--publish 8080:80 \
+--mount "type=volume,volume-driver=rexray,source=web_data,target=/usr/local/apache2/htdocs" \
+httpd
+
+

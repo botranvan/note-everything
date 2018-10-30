@@ -1,0 +1,30 @@
+---
+# tasks file for roles/requirements
+- name: Making {{ dest_scripts }} directory
+  file:
+    path: "{{ dest_scripts }}"
+    state: directory
+  tags: ['copy_script']
+
+
+- name: Copy requirements script to remote
+  template:
+   dest: '{{ dest_scripts }}/requirements.sh'
+   src: requirements.sh.j2
+   force: yes
+   mode: 0755
+  tags: ['copy_script']
+
+- name: Copy utils script to remote
+  copy:
+   dest: '{{ dest_scripts }}/utils.sh'
+   force: yes
+   mode: 0755
+   src: utils.sh
+  tags: ['copy_script']
+
+- name: Installing requirement packages
+  shell: sh requirements.sh
+  args:
+    chdir: '{{ dest_scripts }}'
+  tags: ['run_script']

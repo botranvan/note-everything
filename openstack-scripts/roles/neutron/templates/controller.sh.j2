@@ -1,0 +1,99 @@
+#!/bin/sh
+source utils.sh
+
+# Prerequisites
+mysql -e \
+"CREATE DATABASE neutron;
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '{{ database_neutron_password }}';
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '{{ database_neutron_password }}';
+"
+
+# Source the admin credentials to gain access to admin-only CLI commands
+source /root/admin-openrc
+
+# To create the service credentials
+# Create the neutron user
+openstack user create --domain default --password {{ neutron.password }} neutron
+
+# Add the admin role to the neutron user
+openstack role add --project service --user neutron admin
+
+# Create the neutron service entity
+openstack service create --name neutron --description "OpenStack Networking" network
+
+# Create the Networking service API endpoints
+openstack endpoint create --region RegionOne network admin http://{{ neutron.admin_url }}
+openstack endpoint create --region RegionOne network internal http://{{ neutron.internal_url }}
+openstack endpoint create --region RegionOne network public http://{{ neutron.public_url }}
+
+# Open vSwitch: Self-service networks
+apt install -y neutron-server neutron-plugin-ml2
+
+# Enable routing and allow overlapping IP address ranges
+add_config /etc/neutron/neutron.conf DEFAULT core_plugin ml2
+add_config /etc/neutron/neutron.conf DEFAULT service_plugins router
+add_config /etc/neutron/neutron.conf DEFAULT allow_overlapping_ips True
+
+# Add vxlan to type drivers and project network types
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers flat,vlan,vxlan
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
+
+# Enable the layer-2 population mechanism driver.
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch,l2population
+
+# Configure the VXLAN network ID (VNI) range
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 1:1000
+
+# Configure the server component
+add_config /etc/neutron/neutron.conf database connection mysql+pymysql://neutron:{{ database_neutron_password }}@{{ mysql_database.listen }}/neutron
+
+# configure RabbitMQ message queue access
+add_config /etc/neutron/neutron.conf transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
+
+# configure Identity service access
+add_config /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
+add_config /etc/neutron/neutron.conf keystone_authtoken www_authenticate_uri http://{{ keystone.internal_url }}
+add_config /etc/neutron/neutron.conf keystone_authtoken auth_url http://{{ keystone.internal_url }}
+add_config /etc/neutron/neutron.conf keystone_authtoken memcached_servers {{ memcached.listen }}:11211
+add_config /etc/neutron/neutron.conf keystone_authtoken auth_type password
+add_config /etc/neutron/neutron.conf keystone_authtoken project_domain_name default
+add_config /etc/neutron/neutron.conf keystone_authtoken user_domain_name default
+add_config /etc/neutron/neutron.conf keystone_authtoken project_name service
+add_config /etc/neutron/neutron.conf keystone_authtoken username neutron
+add_config /etc/neutron/neutron.conf keystone_authtoken password {{ neutron.password }}
+
+# configure Networking to notify Compute of network topology changes
+add_config /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes true
+add_config /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes true
+add_config /etc/neutron/neutron.conf nova auth_url http://{{ keystone.internal_url }}
+add_config /etc/neutron/neutron.conf nova auth_type password
+add_config /etc/neutron/neutron.conf nova project_domain_name default
+add_config /etc/neutron/neutron.conf nova user_domain_name default
+add_config /etc/neutron/neutron.conf nova region_name RegionOne
+add_config /etc/neutron/neutron.conf nova project_name service
+add_config /etc/neutron/neutron.conf nova username nova
+add_config /etc/neutron/neutron.conf nova password {{ compute.password }}
+
+# Configure the Compute service to use the Networking service
+add_config /etc/nova/nova.conf neutron url http://{{ neutron.internal_url }}
+add_config /etc/nova/nova.conf neutron auth_url http://{{ keystone.internal_url }}
+add_config /etc/nova/nova.conf neutron auth_type password
+add_config /etc/nova/nova.conf neutron project_domain_name default
+add_config /etc/nova/nova.conf neutron user_domain_name default
+add_config /etc/nova/nova.conf neutron region_name RegionOne
+add_config /etc/nova/nova.conf neutron project_name service
+add_config /etc/nova/nova.conf neutron username neutron
+add_config /etc/nova/nova.conf neutron password {{ neutron.password }}
+add_config /etc/nova/nova.conf neutron service_metadata_proxy true
+add_config /etc/nova/nova.conf neutron metadata_proxy_shared_secret METADATA_SECRET
+
+# Finalize installation
+# Populate the database
+su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
+--config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+
+# Restart the Compute API service
+service neutron-api restart
+
+# Restart the Networking services
+# service neutron-openvswitch-agent restart

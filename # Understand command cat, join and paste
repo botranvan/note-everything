@@ -1,0 +1,144 @@
+# Understand command cat, join and paste
+
+
+1. Command `cat`:
+
+- Using to concat files content and print to standard ouput. Example:
+
+        cat filename 2filename 3filename
+
+- Using to create a standard input or standard output. Example:
+    - Standard input:
+
+            cat > filename
+            [enter contents to write to filename and stop by Ctrl+C]
+
+    - Standard output:
+
+            cat filename
+
+    - Using option `-n` to show lines number. Example:
+
+            cat -n filename
+
+    - Using option `-E` to show `$` at the end line. (often using when word wrap):
+
+            cat -n filname
+
+
+2. Command 'join':
+
+- Using to join lines of 2 files to one (merge) on a common field. Example:
+
+        cat -n filename > filename.cp && cat filename.cp
+
+         1  haha
+         2  hihi
+         3  lala
+         4  shosh
+         5  hehe
+         6  lol
+         7  pass
+         8  user
+
+    and
+
+        cat -n 2filename > 2filename.cp && cat 2filename.cp
+
+         1  haha
+         2  hehe
+         3  lala
+         4  lili
+         5  lolo
+         6  sss sss
+         7  hownch
+         8
+
+    with command `join filename.cp 2filename.cp` will printed:
+
+        1 haha haha
+        2 hihi hehe
+        3 lala lala
+        4 shosh lili
+        5 hehe lolo
+        6 lol sss sss
+        7 pass hownch
+        8 user
+
+- Each field separate by a `space`. Example:
+
+        cat filename:
+
+            haha hihi hehe
+
+    Above, filename have 3 fields is haha, hihi, hehe.
+
+- Using `-1 FIELD` and `-2 2FIELD` to join `FIELS` in file 1 with `2FIELD` in file 2. Example:
+
+        cat wine.txt
+
+        Red Beaunes France
+        White Reisling Germany
+        Red Riocha Spain
+
+    and
+
+        cat reviews.txt
+        Beaunes Great!
+        Reisling Terrible!
+        Riocha Meh
+
+    with command `join -1 2 -2 1 wine.txt reviews.txt`, we have:
+
+        Beaunes Red France Great!
+        Reisling White Germany Terrible!
+        Riocha Red Spain Meh
+
+- Using option `-o` to format output. Example:
+
+        join -o 1.1,1.2,1.3
+
+    will printed:
+
+        something, something, something
+
+3. Command `paste`:
+
+- Using to merge lines of files. Example
+
+        paste filename 2filename
+
+    will printed:
+
+        haha    haha
+        hihi    hehe
+        lala    lala
+        shosh   lili
+        hehe    lolo
+        lol sss sss
+        pass    hownch
+        user
+
+- Using option `-d` to delimiters. Example:
+
+        paste -d filename 2filename
+
+    will printed:
+
+        haha:haha
+        hihi:hehe
+        lala:lala
+        shosh:lili
+        hehe:lolo
+        lol:sss sss
+        pass:hownch
+        user:
+
+- Using option `-s` to delimiters. Example:
+
+        paste -s filename 2filename
+
+    will printed:
+
+        haha    hihi    lala    shosh   hehe    lol pass    user
+        haha    hehe    lala    lili    lolo    sss sss hownch

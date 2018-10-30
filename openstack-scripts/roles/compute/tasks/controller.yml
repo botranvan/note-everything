@@ -1,0 +1,14 @@
+---
+- name: Copy compute script to remote
+  template:
+    dest: '{{ dest_scripts }}/compute.sh'
+    force: yes
+    mode: 0755
+    src: controller.sh.j2
+  tags: ['copy_script']
+
+- name: Installing compute service on {{ role }}
+  shell: sh compute.sh
+  args:
+    chdir: '{{ dest_scripts }}'
+  tags: ['install_compute']

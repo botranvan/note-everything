@@ -1,0 +1,20 @@
+---
+# tasks file for controller_required
+- name: Copy controller_required script to remote
+  template:
+    dest: '{{ dest_scripts }}/controller_required.sh'
+    force: yes
+    mode: 0755
+    src: controller_required.sh.j2
+  when:
+    - in_action == 'controller'
+  tags: ['copy_script']
+
+- name: Installing controller_required service
+  shell: sh controller_required.sh
+  args:
+    chdir: '{{ dest_scripts }}'
+  when:
+    - in_action == 'controller'
+  tags: ['install_controller_required']
+

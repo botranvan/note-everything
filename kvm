@@ -1,0 +1,9 @@
+virt-install \
+--name ubuntu \
+--ram 1024 \
+--disk path=/var/qemu-kvm/images/ubuntu.img,size=10 \
+--vcpus 2 \
+--graphics none \
+--console pty,target_type=serial \
+--location 'http://jp.archive.ubuntu.com/ubuntu/dists/trusty/main/installer-amd64/' \
+--extra-args 'console=ttyS0,115200n8 serial'

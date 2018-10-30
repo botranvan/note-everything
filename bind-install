@@ -1,0 +1,79 @@
+yum -y install bind bind-utils
+
+
+
+
+vi /etc/named.conf 
+
+zone "ministry.local" IN {
+    type master;
+        file "forward.ministry";
+        allow-update { none; };
+};
+zone "10.10.10.in-addr.arpa" IN {
+    type master;
+    file "reverse.ministry";
+    allow-update { none; };
+};
+
+include "/etc/named.rfc1912.zones";
+include "/etc/named.root.key";
+
+
+
+vi /var/named/forward.ministry
+$TTL 86400
+@   IN  SOA     masterdns.ministry.local. root.ministry.local. (
+        2011071001  ;Serial
+        3600        ;Refresh
+        1800        ;Retry
+        604800      ;Expire
+        86400       ;Minimum TTL
+)
+@       IN  NS          masterdns.ministry.local.
+@       IN  NS          slavedns.ministry.local.
+@       IN  A           10.10.10.72
+@       IN  A           10.10.10.73
+@       IN  A           10.10.10.20
+masterdns       IN  A   10.10.10.72
+slavedns    IN  A   10.10.10.73
+client          IN  A   10.10.10.20
+
+
+
+vi /var/named/reverse.ministry
+$TTL 86400
+@   IN  SOA     masterdns.ministry.local. root.ministry.local. (
+        2011071001  ;Serial
+        3600        ;Refresh
+        1800        ;Retry
+        604800      ;Expire
+        86400       ;Minimum TTL
+)
+@       IN  NS          masterdns.ministry.local.
+@       IN  NS          slavedns.ministry.local.
+@       IN  PTR         ministry.local.
+masterdns       IN  A   10.10.10.72
+slavedns    IN  A   10.10.10.73
+client          IN  A   10.10.10.20
+72     IN  PTR         masterdns.ministry.local.
+73     IN  PTR         slavedns.ministry.local.
+20     IN  PTR         client.ministry.local.
+
+systemctl start named
+systemctl enable named
+
+
+# slave
+
+
+zone "ministry.local" IN {
+    type slave;
+    file "slaves/ministry.fwd";
+    masters { 10.10.10.72; };
+};
+zone "1.168.192.in-addr.arpa" IN {
+    type slave;
+    file "slaves/ministry.rev";
+    masters { 10.10.10.72; };
+};
