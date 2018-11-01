@@ -9,3 +9,7 @@ neutron:
   admin_url: 10.5.9.130:9696
   internal_url: 10.5.9.130:9696
   public_url: 10.5.9.130:9696
+
+ovs_deploy_network: provider
+metadata_host: 10.5.9.130
+provider_interface: eth1

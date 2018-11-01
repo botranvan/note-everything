@@ -45,7 +45,7 @@ ovs-vsctl add-br br-provider
 
 # configure the layer-2 agent
 add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs bridge_mappings provider:br-provider
-add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip overlay_interface_ip_address
+add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip {{ ansible_eth2.ipv4.address }}
 add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini agent tunnel_types vxlan
 add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini agent l2_population True
 add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini securitygroup firewall_driver iptables_hybrid

@@ -13,8 +13,8 @@ compute:
 
 placement:
   password: Welcome123
-  admin_url: 10.5.9.130:8774
-  internal_url: 10.5.9.130:8774
-  public_url: 10.5.9.130:8774
+  admin_url: 10.5.9.130:8778
+  internal_url: 10.5.9.130:8778
+  public_url: 10.5.9.130:8778
 
 novncproxy_base_url_listen: 10.5.9.130:6080

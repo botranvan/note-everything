@@ -1,13 +1,11 @@
 cat << EOF > /etc/neutron/neutron.policy.json
 {
-    "is_owner_project": "role:owner_project and project_id:%(network:project_id)s",
-    "is_member": "role:member and user_id:%(user_id)s and project_id:%(network:project_id)s",
-
     "context_is_admin":  "role:admin",
-    "admin_or_owner": "rule:context_is_admin or rule:is_owner_project",
+    "owner": "tenant_id:%(tenant_id)s",
+    "admin_or_owner": "rule:context_is_admin or rule:owner",
     "context_is_advsvc":  "role:advsvc",
-    "admin_or_network_owner": "rule:context_is_admin or rule:is_owner_project",
-    "admin_owner_or_network_owner": "rule:is_owner_project or rule:admin_or_network_owner",
+    "admin_or_network_owner": "rule:context_is_admin or tenant_id:%(network:tenant_id)s",
+    "admin_owner_or_network_owner": "rule:owner or rule:admin_or_network_owner",
     "admin_only": "rule:context_is_admin",
     "regular_user": "",
     "admin_or_data_plane_int": "rule:context_is_admin or role:data_plane_integrator",
@@ -16,7 +14,7 @@ cat << EOF > /etc/neutron/neutron.policy.json
     "shared_address_scopes": "field:address_scopes:shared=True",
     "external": "field:networks:router:external=True",
     "default": "rule:admin_or_owner",
-    "admin_or_ext_parent_owner": "rule:context_is_admin or project_id:%(ext_parent:project_id)s",
+    "admin_or_ext_parent_owner": "rule:context_is_admin or tenant_id:%(ext_parent:tenant_id)s",
 
     "create_subnet": "rule:admin_or_network_owner",
     "create_subnet:segment_id": "rule:admin_only",
@@ -42,7 +40,7 @@ cat << EOF > /etc/neutron/neutron.policy.json
     "update_address_scope:shared": "rule:admin_only",
     "delete_address_scope": "rule:admin_or_owner",
 
-    "create_network": "rule:admin_or_owner or rule:is_member",
+    "create_network": "",
     "create_network:shared": "rule:admin_only",
     "create_network:router:external": "rule:admin_only",
     "create_network:is_default": "rule:admin_only",
@@ -153,6 +151,7 @@ cat << EOF > /etc/neutron/neutron.policy.json
     "create_floatingip": "rule:regular_user",
     "create_floatingip:floating_ip_address": "rule:admin_only",
     "get_floatingip": "rule:admin_or_owner",
+    "get_floatingip_pool": "rule:regular_user",
     "update_floatingip": "rule:admin_or_owner",
     "delete_floatingip": "rule:admin_or_owner",
 
@@ -263,7 +262,4 @@ cat << EOF > /etc/neutron/neutron.policy.json
 }
 
 EOF
-
-
-
 

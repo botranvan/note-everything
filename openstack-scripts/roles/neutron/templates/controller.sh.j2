@@ -31,24 +31,46 @@ apt install -y neutron-server neutron-plugin-ml2
 
 # Enable routing and allow overlapping IP address ranges
 add_config /etc/neutron/neutron.conf DEFAULT core_plugin ml2
+{% if ovs_deploy_network == "self-service" %}
 add_config /etc/neutron/neutron.conf DEFAULT service_plugins router
+{% endif %}
+{% if ovs_deploy_network == "provider" %}
+add_config /etc/neutron/neutron.conf DEFAULT service_plugins
+add_config /etc/neutron/neutron.conf DEFAULT dhcp_agents_per_network 2
+{% endif %}
 add_config /etc/neutron/neutron.conf DEFAULT allow_overlapping_ips True
 
+{% if ovs_deploy_network == "self-service" %}
 # Add vxlan to type drivers and project network types
 add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers flat,vlan,vxlan
 add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
 
 # Enable the layer-2 population mechanism driver.
 add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch,l2population
+{% endif %}
+{% if ovs_deploy_network == "provider" %}
+# Add vxlan to type drivers and project network types
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers flat,vlan
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2 extension_drivers port_security
 
+# Configure network mappings
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_flat flat_networks provider
+add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vlan network_vlan_ranges provider
+{% endif %}
+
+
+{% if ovs_deploy_network == "self-service" %}
 # Configure the VXLAN network ID (VNI) range
 add_config /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 1:1000
+{% endif %}
 
 # Configure the server component
 add_config /etc/neutron/neutron.conf database connection mysql+pymysql://neutron:{{ database_neutron_password }}@{{ mysql_database.listen }}/neutron
 
 # configure RabbitMQ message queue access
-add_config /etc/neutron/neutron.conf transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
+add_config /etc/neutron/neutron.conf DEFAULT transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
 
 # configure Identity service access
 add_config /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
@@ -93,7 +115,10 @@ su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
 --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
 
 # Restart the Compute API service
-service neutron-api restart
+service neutron-server restart
 
 # Restart the Networking services
 # service neutron-openvswitch-agent restart
+
+# Restart the Compute service
+service nova-compute restart

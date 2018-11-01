@@ -17,4 +17,4 @@
     - in_action == 'compute'
 - import_tasks: network.yml
   when:
-    - in_action == 'network'
+    - in_action == 'network' and ovs_deploy_network == 'self-service'

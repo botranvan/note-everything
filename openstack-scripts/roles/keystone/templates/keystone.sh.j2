@@ -53,13 +53,13 @@ source /root/admin-openrc
 # Create a domain, projects, users, and roles
 {% if domains is defined %}
 {% for domain in domains %}
-openstack domain create --description {{ domain.description }} {{ domain.name }}
+openstack domain create --description "{{ domain.description }}" {{ domain.name }}
 {% endfor %}
 {% endif %}
 
 {% if projects is defined %}
 {% for project in projects %}
-openstack project create --domain {{ project.domain }} --description {{ project.description }} {{ project.name }}
+openstack project create --domain {{ project.domain }} --description "{{ project.description }}" {{ project.name }}
 {% endfor %}
 {% endif %}
 

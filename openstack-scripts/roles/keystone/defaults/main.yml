@@ -37,8 +37,7 @@ users:
     domain: default
 
 openstack_roles:
-  - name: myrole
-    domain: default
+  - name: onwer_project
     assign:
       - user: myuser
         project: myproject
