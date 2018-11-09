@@ -1,20 +1,21 @@
 ---
 # defaults file for compute
-dest_scripts: /root/openstack-scripts
 
 database_nova_password: Welcome123
 database_placement_password: Welcome123
 
 compute:
   password: Welcome123
-  admin_url: 10.5.9.130:8774
-  internal_url: 10.5.9.130:8774
-  public_url: 10.5.9.130:8774
+  admin_url: 192.168.53.89:8774
+  internal_url: 192.168.53.89:8774
+  public_url: 192.168.53.89:8774
+  proxy_admin_user: nova
+  proxy_admin_pass: Welcome123
 
 placement:
   password: Welcome123
-  admin_url: 10.5.9.130:8778
-  internal_url: 10.5.9.130:8778
-  public_url: 10.5.9.130:8778
+  admin_url: 192.168.53.89:8778
+  internal_url: 192.168.53.89:8778
+  public_url: 192.168.53.89:8778
 
-novncproxy_base_url_listen: 10.5.9.130:6080
+novncproxy_base_url_listen: 192.168.53.89:6080

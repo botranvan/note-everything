@@ -1,2 +1,7 @@
 ---
 # handlers file for roles/keystone
+- name: Copy openrc file to remote
+  copy:
+   dest: "{{ ansible_env.HOME }}/openrc"
+   mode: "755"
+   src: "openrc"

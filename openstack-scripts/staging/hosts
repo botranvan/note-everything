@@ -1,17 +1,14 @@
-[controller]
-10.5.9.130
+# [controller]
+# 192.168.53.89 ansible_python_interpreter=/usr/bin/python3.6
 
 
-[compute]
-10.5.10.124
-10.5.10.137
+# [compute]
+# 192.168.53.89 ansible_python_interpreter=/usr/bin/python3.6
 
 
-[network]
-10.5.10.127
-10.5.10.138
+# [network]
+# 192.168.53.89 ansible_python_interpreter=/usr/bin/python3.6
 
 
 [cinder]
-10.5.10.113
-10.5.10.125
+192.168.53.89 ansible_python_interpreter=/usr/bin/python3.6

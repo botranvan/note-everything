@@ -38,3 +38,35 @@ network 192.168.19.0
 Documents:
 	https://www.swiftstack.com/docs/install/configure_networking.html
 	https://help.ubuntu.com/lts/serverguide/network-configuration.html
+
+
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+     ens1f0:
+       dhcp4: false
+     ens1f1:
+       dhcp4: false
+  bonds:
+    bond0:
+      interfaces:
+        - ens1f0
+        - ens1f1
+      parameters:
+        mode: 802.3ad
+        mii-monitor-interval: 1
+  vlans:
+    vlan53:
+      id: 53
+      link: bond0
+      addresses: ["192.168.53.89/24"]
+      gateway4: 192.168.53.1
+      nameservers:
+        addresses: ["1.1.1.1", "8.8.8.8"]
+    vlan57:
+      id: 57
+      link: bond0
+      addresses: ["192.168.57.127/24"]
+      nameservers:
+        addresses: ["1.1.1.1", "8.8.8.8"]

@@ -10,6 +10,9 @@ cat << EOF > /etc/nova/nova.policy.yaml
 "is_owner_or_member": "rule:is_owner_project or rule:is_member"
 
 # edited
+"is_operator": "role:operator and project_id:%(project_id)s"
+
+# edited
 "is_reader": "role:reader and project_id:%(project_id)s"
 
 # Decides what is required for the 'is_admin:True' check to succeed.
@@ -23,52 +26,28 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # Default rule for most Admin APIs.
 "admin_api": "is_admin:True"
 
-# Reset the state of a given server
-# POST  /servers/{server_id}/action (os-resetState)
-# edited
-"os_compute_api:os-admin-actions:reset_state": "rule:admin_api or rule:is_owner_or_member"
-
-# Inject network information into the server
-# POST  /servers/{server_id}/action (injectNetworkInfo)
-# edited
-"os_compute_api:os-admin-actions:inject_network_info": "rule:admin_api or rule:is_owner_or_member"
-
-# Reset networking on a server
-# POST  /servers/{server_id}/action (resetNetwork)
-# edited
-"os_compute_api:os-admin-actions:reset_network": "rule:admin_api or rule:is_owner_or_member"
 
 
 
-# Create, list, update, and delete guest agent builds
-#
-# This is XenAPI driver specific. It is used to force the upgrade of
-# the XenAPI guest agent on instance boot.
-# GET  /os-agents
-# POST  /os-agents
-# PUT  /os-agents/{agent_build_id}
-# DELETE  /os-agents/{agent_build_id}
-# edited
-"os_compute_api:os-agents": "rule:admin_api or rule:is_owner_project"
 
 
 
-# Create an assisted volume snapshot
-# POST  /os-assisted-volume-snapshots
-# edited
-"os_compute_api:os-assisted-volume-snapshots:create": "rule:admin_api or rule:is_owner_or_member"
 
-# Delete an assisted volume snapshot
-# DELETE  /os-assisted-volume-snapshots/{snapshot_id}
-# edited
-"os_compute_api:os-assisted-volume-snapshots:delete": "rule:admin_api or rule:is_owner_or_member"
+
+
+
+
+
+
+
+
 
 # List port interfaces or show details of a port interface attached to
 # a server
 # GET  /servers/{server_id}/os-interface
 # GET  /servers/{server_id}/os-interface/{port_id}
 # edited
-"os_compute_api:os-attach-interfaces": "rule:admin_or_owner or rule:is_member or rule:is_reader"
+"os_compute_api:os-attach-interfaces": "rule:admin_or_owner or rule:is_member or rule:is_reader or rule:is_operator"
 
 # Attach an interface to a server
 # POST  /servers/{server_id}/os-interface
@@ -82,27 +61,24 @@ cat << EOF > /etc/nova/nova.policy.yaml
 
 
 
-# List detailed availability zone information with host information
-# GET  /os-availability-zone/detail
-# edited
-"os_compute_api:os-availability-zone:detail": "rule:admin_api or rule:is_owner_project"
+
 
 
 
 # Show console output for a server
 # POST  /servers/{server_id}/action (os-getConsoleOutput)
 # edited
-"os_compute_api:os-console-output": "rule:admin_or_owner or rule:is_member or rule:is_reader"
+"os_compute_api:os-console-output": "rule:admin_or_owner or rule:is_member or rule:is_reader or rule:is_operator"
 
 # Create a console for a server instance
 # POST  /servers/{server_id}/consoles
 # edited
-"os_compute_api:os-consoles:create": "rule:admin_or_owner or rule:is_member"
+"os_compute_api:os-consoles:create": "rule:admin_or_owner or rule:is_member or rule:is_operator"
 
 # Show console details for a server instance
 # GET  /servers/{server_id}/consoles/{console_id}
 # edited
-"os_compute_api:os-consoles:show": "rule:admin_or_owner or rule:is_member or rule:is_reader"
+"os_compute_api:os-consoles:show": "rule:admin_or_owner or rule:is_member or rule:is_reader or rule:is_operator"
 
 # Delete a console for a server instance
 # DELETE  /servers/{server_id}/consoles/{console_id}
@@ -112,7 +88,7 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # List all consoles for a server instance
 # GET  /servers/{server_id}/consoles
 # edited
-"os_compute_api:os-consoles:index": "rule:admin_or_owner or rule:is_owner_or_member"
+"os_compute_api:os-consoles:index": "rule:admin_or_owner or rule:is_owner_or_member or rule:is_operator"
 
 # Create a back up of a server
 # POST  /servers/{server_id}/action (createBackup)
@@ -120,35 +96,13 @@ cat << EOF > /etc/nova/nova.policy.yaml
 "os_compute_api:os-create-backup": "rule:admin_or_owner or rule:is_owner_or_member"
 
 
-# Return extended attributes for server.
-#
-# This rule will control the visibility for a set of servers
-# attributes:
-#
-# - ``OS-EXT-SRV-ATTR:host`` - ``OS-EXT-SRV-ATTR:instance_name`` -
-# ``OS-EXT-SRV-ATTR:reservation_id`` (since microversion 2.3) - ``OS-
-# EXT-SRV-ATTR:launch_index`` (since microversion 2.3) - ``OS-EXT-SRV-
-# ATTR:hostname`` (since microversion 2.3) - ``OS-EXT-SRV-
-# ATTR:kernel_id`` (since microversion 2.3) - ``OS-EXT-SRV-
-# ATTR:ramdisk_id`` (since microversion 2.3) - ``OS-EXT-SRV-
-# ATTR:root_device_name`` (since microversion 2.3) - ``OS-EXT-SRV-
-# ATTR:user_data`` (since microversion 2.3)
-# GET  /servers/{id}
-# GET  /servers/detail
-# edited
-"os_compute_api:os-extended-server-attributes": "rule:admin_api or rule:is_owner_or_member or rule:is_reader"
 
 
 
-# Add flavor access to a tenant
-# POST  /flavors/{flavor_id}/action (addTenantAccess)
-# edited
-"os_compute_api:os-flavor-access:add_tenant_access": "rule:admin_api or rule:is_owner_or_member"
 
-# Remove flavor access from a tenant
-# POST  /flavors/{flavor_id}/action (removeTenantAccess)
-# edited
-"os_compute_api:os-flavor-access:remove_tenant_access": "rule:admin_api or rule:is_owner_or_member"
+
+
+
 
 # List flavor access information
 #
@@ -163,39 +117,19 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # edited
 "os_compute_api:os-flavor-extra-specs:show": "rule:admin_or_owner or rule:is_member or rule:is_reader"
 
-# Create extra specs for a flavor
-# POST  /flavors/{flavor_id}/os-extra_specs/
-# edited
-"os_compute_api:os-flavor-extra-specs:create": "rule:admin_api or rule:is_owner_or_member"
-
-# Update an extra spec for a flavor
-# PUT  /flavors/{flavor_id}/os-extra_specs/{flavor_extra_spec_key}
-# edited
-"os_compute_api:os-flavor-extra-specs:update": "rule:admin_api or rule:is_owner_or_member"
-
-# Delete an extra spec for a flavor
-# DELETE  /flavors/{flavor_id}/os-extra_specs/{flavor_extra_spec_key}
-# edited
-"os_compute_api:os-flavor-extra-specs:delete": "rule:admin_api or rule:is_owner_or_member"
 
 
-# Create and delete Flavors. Deprecated in Pike and will be removed in
-# future release
-# POST  /flavors
-# DELETE  /flavors/{flavor_id}
-# edited
-"os_compute_api:os-flavor-manage": "rule:admin_api or rule:is_owner_or_member"
 
 
-# Update a flavor
-# PUT  /flavors/{flavor_id}
-# edited
-"os_compute_api:os-flavor-manage:update": "rule:admin_api or rule:is_owner_or_member"
 
-# Delete a flavor
-# DELETE  /flavors/{flavor_id}
-# edited
-"os_compute_api:os-flavor-manage:delete": "rule:os_compute_api:os-flavor-manage or rule:is_owner_or_member"
+
+
+
+
+
+
+
+
 
 
 
@@ -209,18 +143,18 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # GET  /servers/{server_id}/os-instance-actions
 # GET  /servers/{server_id}/os-instance-actions/{request_id}
 # edited
-"os_compute_api:os-instance-actions": "rule:admin_or_owner or rule:is_member or rule:is_reader"
+"os_compute_api:os-instance-actions": "rule:admin_or_owner or rule:is_member or rule:is_reader or rule:is_operator"
 
 
 # Show IP addresses details for a network label of a server
 # GET  /servers/{server_id}/ips/{network_label}
 # edited
-"os_compute_api:ips:show": "rule:admin_or_owner or rule:is_member or rule:is_reader"
+"os_compute_api:ips:show": "rule:admin_or_owner or rule:is_member or rule:is_reader or rule:is_operator"
 
 # List IP addresses that are assigned to a server
 # GET  /servers/{server_id}/ips
 # edited
-"os_compute_api:ips:index": "rule:admin_or_owner or rule:is_member or rule:is_reader"
+"os_compute_api:ips:index": "rule:admin_or_owner or rule:is_member or rule:is_reader or rule:is_operator"
 
 # List all keypairs
 # GET  /os-keypairs
@@ -262,16 +196,7 @@ cat << EOF > /etc/nova/nova.policy.yaml
 "os_compute_api:os-lock-server:unlock:unlock_override": "rule:admin_api or rule:is_owner_project"
 
 
-# Create and delete a network, add and disassociate a network from a
-# project.
-#
-# These APIs are only available with nova-network which is deprecated.
-# POST  /os-networks
-# POST  /os-networks/add
-# DELETE  /os-networks/{network_id}
-# POST  /os-networks/{network_id}/action (disassociate)
-# edited
-"os_compute_api:os-networks": "rule:admin_api or rule:is_owner_or_member"
+
 
 # List networks for the project and show details for a network.
 #
@@ -330,10 +255,7 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # edited
 "os_compute_api:os-security-groups": "rule:admin_or_owner or rule:is_member"
 
-# Show the usage data for a server
-# GET  /servers/{server_id}/diagnostics
-# edited
-"os_compute_api:os-server-diagnostics": "rule:admin_api or rule:is_owner_or_member or rule:is_reader"
+
 
 
 # List all metadata of a server
@@ -401,13 +323,13 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # List all servers with detailed information
 # GET  /servers/detail
 # edited
-"os_compute_api:servers:detail": "rule:admin_or_owner or rule:is_member or rule:is_reader"
+"os_compute_api:servers:detail": "rule:admin_or_owner or rule:is_member or rule:is_reader or rule:is_operator"
 
 
 # Show a server
 # GET  /servers/{server_id}
 # edited
-"os_compute_api:servers:show": "rule:admin_or_owner or rule:is_member or rule:is_reader"
+"os_compute_api:servers:show": "rule:admin_or_owner or rule:is_member or rule:is_reader or rule:is_operator"
 
 
 # Create a server
@@ -479,7 +401,7 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # Reboot a server
 # POST  /servers/{server_id}/action (reboot)
 # edited
-"os_compute_api:servers:reboot": "rule:admin_or_owner or rule:is_member"
+"os_compute_api:servers:reboot": "rule:admin_or_owner or rule:is_member or rule:is_operator"
 
 # Resize a server
 # POST  /servers/{server_id}/action (resize)
@@ -509,12 +431,12 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # Start a server
 # POST  /servers/{server_id}/action (os-start)
 # edited
-"os_compute_api:servers:start": "rule:admin_or_owner or rule:is_member"
+"os_compute_api:servers:start": "rule:admin_or_owner or rule:is_member or rule:is_operator"
 
 # Stop a server
 # POST  /servers/{server_id}/action (os-stop)
 # edited
-"os_compute_api:servers:stop": "rule:admin_or_owner or rule:is_member"
+"os_compute_api:servers:stop": "rule:admin_or_owner or rule:is_member or rule:is_operator"
 
 # Trigger crash dump in a server
 # POST  /servers/{server_id}/action (trigger_crash_dump)
@@ -555,16 +477,7 @@ cat << EOF > /etc/nova/nova.policy.yaml
 "os_compute_api:os-suspend-server:suspend": "rule:admin_or_owner or rule:is_member"
 
 
-# Create, list, show information for, and delete project networks.
-#
-# These APIs are proxy calls to the Network service. These are all
-# deprecated.
-# GET  /os-tenant-networks
-# POST  /os-tenant-networks
-# GET  /os-tenant-networks/{network_id}
-# DELETE  /os-tenant-networks/{network_id}
-# edited
-"os_compute_api:os-tenant-networks": "rule:admin_or_owner or rule:is_member"
+
 
 
 # Manage volumes for use with the Compute API.
@@ -600,15 +513,9 @@ cat << EOF > /etc/nova/nova.policy.yaml
 # edited
 "os_compute_api:os-volumes-attachments:show": "rule:admin_or_owner or rule:is_member or rule:is_reader"
 
-# Update a volume attachment
-# PUT  /servers/{server_id}/os-volume_attachments/{volume_id}
-# edited
-"os_compute_api:os-volumes-attachments:update": "rule:admin_api or rule:is_member"
 
-# Detach a volume from an instance
-# DELETE  /servers/{server_id}/os-volume_attachments/{volume_id}
-# edited
-"os_compute_api:os-volumes-attachments:delete": "rule:admin_or_owner or rule:is_member"
+
+
 
 
 

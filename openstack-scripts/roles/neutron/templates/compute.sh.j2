@@ -1,5 +1,6 @@
 #!/bin/sh
 source utils.sh
+set -o xtrace
 
 # Compute node configure
 # Open vSwitch: Self-service networks
@@ -80,3 +81,4 @@ service neutron-metadata-agent restart
 
 # Restart the Compute service
 service nova-compute restart
+set +o xtrace

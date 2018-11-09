@@ -1,5 +1,6 @@
 #!/bin/sh
 source utils.sh
+set -o xtrace
 
 # Prerequisites
 mysql -e \
@@ -9,7 +10,8 @@ GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '{{ database_ne
 "
 
 # Source the admin credentials to gain access to admin-only CLI commands
-source /root/admin-openrc
+source {{ ansible_env.HOME }}/openrc admin admin
+
 
 # To create the service credentials
 # Create the neutron user
@@ -122,3 +124,4 @@ service neutron-server restart
 
 # Restart the Compute service
 service nova-compute restart
+set +o xtrace

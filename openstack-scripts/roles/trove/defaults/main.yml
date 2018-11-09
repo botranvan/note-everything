@@ -1,0 +1,10 @@
+---
+# defaults file for trove
+
+database_trove_password: Welcome123
+
+trove:
+  password: Welcome123
+  admin_url: 192.168.53.89:8779
+  internal_url: 192.168.53.89:8779
+  public_url: 192.168.53.89:8779

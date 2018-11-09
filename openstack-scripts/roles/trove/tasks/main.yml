@@ -1,31 +1,31 @@
 ---
-# tasks file for roles/keystone
+# tasks file for roles/trove
 - name: Included var from controller_required
   include_vars:
     file: ../../{{ item }}/defaults/main.yml
   with_items:
     - controller_required
+    - keystone
+    - compute
+    - cinder
   when:
     - in_action == 'controller'
   tags: ['copy_script']
 
-- name: Copy keystone script to remote
+- name: Copy trove script to remote
   template:
-    dest: '{{ dest_scripts }}/keystone.sh'
+    dest: '{{ dest_scripts }}/trove.sh'
     force: yes
     mode: 0755
-    src: keystone.sh.j2
+    src: controller.sh.j2
   when:
     - in_action == 'controller'
   tags: ['copy_script']
-  notify:
-    - Copy openrc file to remote
 
-- name: Installing keystone service
-  shell: sh keystone.sh
+- name: Installing trove service
+  shell: sh trove.sh
   args:
     chdir: '{{ dest_scripts }}'
   when:
     - in_action == 'controller'
-  tags: ['install_keystone']
-
+  tags: ['install_trove']

@@ -1,24 +1,23 @@
 ---
 # defaults file for controller_required
-dest_scripts: /root/openstack-scripts
 
-network: 10.5.0.0/16
+network: 192.168.53.0/24
 
 mysql_database:
-  listen: 10.5.9.130
+  listen: 192.168.53.89
 
 message_queue:
-  listen: 10.5.9.130
+  listen: 192.168.53.89
   username: openstack
   password: Welcome123
 
 memcached:
-  listen: 10.5.9.130
+  listen: 192.168.53.89
 
 etcd:
   name: controller01
-  initial_cluster: 10.5.9.130:2380
-  initial_advertise_peer_urls: 10.5.9.130:2380
-  advertise_client_urls: 10.5.9.130:2379
+  initial_cluster: 192.168.53.89:2380
+  initial_advertise_peer_urls: 192.168.53.89:2380
+  advertise_client_urls: 192.168.53.89:2379
   listen_peer_urls: 0.0.0.0:2380
-  listen_client_urls: 10.5.9.130:2380
+  listen_client_urls: 192.168.53.89:2380

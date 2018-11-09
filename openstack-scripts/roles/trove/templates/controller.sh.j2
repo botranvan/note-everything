@@ -1,0 +1,168 @@
+#!/bin/sh
+source utils.sh
+set -o xtrace
+
+# Install and configure for Ubuntu
+# Prerequisites
+# To create the database
+mysql -e \
+"CREATE DATABASE trove;
+GRANT ALL PRIVILEGES ON trove.* TO 'trove'@'localhost'  IDENTIFIED BY '{{ database_trove_password }}';
+GRANT ALL PRIVILEGES ON trove.* TO 'trove'@'%'  IDENTIFIED BY '{{ database_trove_password }}';
+"
+
+# Source the admin credentials to gain access to admin-only CLI commands
+source {{ ansible_env.HOME }}/openrc admin admin
+
+# To create the service credentials, complete these steps
+# Create the trove user
+openstack user create --domain default trove --password {{ trove.password }}
+
+# Add the admin role to the trove user
+openstack role add --project service --user trove admin
+
+# Create the trove service entity
+openstack service create --name trove --description "Database" database
+
+# Create the Database service API endpoints
+
+openstack endpoint create --region RegionOne database admin http://{{ trove.admin_url }}/v1.0/%\(tenant_id\)s
+openstack endpoint create --region RegionOne database internal http://{{ trove.internal_url }}/v1.0/%\(tenant_id\)s
+openstack endpoint create --region RegionOne database public http://{{ trove.public_url }}/v1.0/%\(tenant_id\)s
+
+# Install and configure components
+apt-get install -y python-trove python-troveclient python-glanceclient trove-common trove-api trove-taskmanager trove-conductor
+
+# Config trove in the /etc/trove directory
+# Provide appropriate values for the following settings
+# trove.conf
+add_config /etc/trove/trove.conf DEFAULT log_dir /var/log/trove
+add_config /etc/trove/trove.conf DEFAULT trove_auth_url http://{{ keystone.internal_url }}/identity
+add_config /etc/trove/trove.conf DEFAULT nova_compute_url http://{{ compute.internal_url }}/v2
+add_config /etc/trove/trove.conf DEFAULT cinder_url http://{{ cinder.internal_url }}/v1
+add_config /etc/trove/trove.conf database connection mysql+pymysql://trove:{{ database_trove_password }}@{{ mysql_database.listen }}/trove
+# Configure the Database service to use the RabbitMQ message broker
+add_config /etc/trove/trove.conf DEFAULT rpc_backend rabbit
+add_config /etc/trove/trove.conf oslo_messaging_rabbit rabbit_host {{ message_queue.listen }}
+add_config /etc/trove/trove.conf oslo_messaging_rabbit rabbit_userid {{ message_queue.username }}
+add_config /etc/trove/trove.conf oslo_messaging_rabbit rabbit_password {{ message_queue.password }}
+
+# trove-taskmanager.conf
+add_config /etc/trove/trove-taskmanager.conf DEFAULT log_dir /var/log/trove
+add_config /etc/trove/trove-taskmanager.conf DEFAULT trove_auth_url http://{{ keystone.internal_url }}/identity
+add_config /etc/trove/trove-taskmanager.conf DEFAULT nova_compute_url http://{{ compute.internal_url }}/v2
+add_config /etc/trove/trove-taskmanager.conf DEFAULT cinder_url http://{{ cinder.internal_url }}/v1
+add_config /etc/trove/trove-taskmanager.conf database connection mysql+pymysql://trove:{{ database_trove_password }}@{{ mysql_database.listen }}/trove
+# Configure the Database service to use the RabbitMQ message broker
+add_config /etc/trove/trove-taskmanager.conf DEFAULT rpc_backend rabbit
+add_config /etc/trove/trove-taskmanager.conf oslo_messaging_rabbit rabbit_host {{ message_queue.listen }}
+add_config /etc/trove/trove-taskmanager.conf oslo_messaging_rabbit rabbit_userid {{ message_queue.username }}
+add_config /etc/trove/trove-taskmanager.conf oslo_messaging_rabbit rabbit_password {{ message_queue.password }}
+
+# trove-conductor.conf
+add_config /etc/trove/trove-conductor.conf DEFAULT log_dir /var/log/trove
+add_config /etc/trove/trove-conductor.conf DEFAULT trove_auth_url http://{{ keystone.internal_url }}/identity
+add_config /etc/trove/trove-conductor.conf DEFAULT nova_compute_url http://{{ compute.internal_url }}/v2
+add_config /etc/trove/trove-conductor.conf DEFAULT cinder_url http://{{ cinder.internal_url }}/v1
+add_config /etc/trove/trove-conductor.conf database connection mysql+pymysql://trove:{{ database_trove_password }}@{{ mysql_database.listen }}/trove
+# Configure the Database service to use the RabbitMQ message broker
+add_config /etc/trove/trove-conductor.conf DEFAULT rpc_backend rabbit
+add_config /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_host {{ message_queue.listen }}
+add_config /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_userid {{ message_queue.username }}
+add_config /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_password {{ message_queue.password }}
+
+# Verify that the api-paste.ini file is present in /etc/trove
+cat << EOF > /etc/trove/api-paste.ini
+[composite:trove]
+use = call:trove.common.wsgi:versioned_urlmap
+/: versions
+/v1.0: troveapi
+
+[app:versions]
+paste.app_factory = trove.versions:app_factory
+
+[pipeline:troveapi]
+pipeline = cors http_proxy_to_wsgi faultwrapper osprofiler authtoken authorization contextwrapper ratelimit extensions troveapp
+#pipeline = debug extensions troveapp
+
+[filter:extensions]
+paste.filter_factory = trove.common.extensions:factory
+
+[filter:authtoken]
+paste.filter_factory = keystonemiddleware.auth_token:filter_factory
+
+[filter:authorization]
+paste.filter_factory = trove.common.auth:AuthorizationMiddleware.factory
+
+[filter:cors]
+paste.filter_factory = oslo_middleware.cors:filter_factory
+oslo_config_project = trove
+
+[filter:contextwrapper]
+paste.filter_factory = trove.common.wsgi:ContextMiddleware.factory
+
+[filter:faultwrapper]
+paste.filter_factory = trove.common.wsgi:FaultWrapper.factory
+
+[filter:ratelimit]
+paste.filter_factory = trove.common.limits:RateLimitingMiddleware.factory
+
+[filter:osprofiler]
+paste.filter_factory = osprofiler.web:WsgiMiddleware.factory
+
+[app:troveapp]
+paste.app_factory = trove.common.api:app_factory
+
+#Add this filter to log request and response for debugging
+[filter:debug]
+paste.filter_factory = trove.common.wsgi:Debug
+
+[filter:http_proxy_to_wsgi]
+use = egg:oslo.middleware#http_proxy_to_wsgi
+EOF
+
+# Edit the trove.conf file so it includes appropriate values for the settings shown below
+add_config /etc/trove/trove.conf keystone_authtoken auth_strategy keystone
+add_config /etc/trove/trove.conf keystone_authtoken add_addresses True
+add_config /etc/trove/trove.conf keystone_authtoken network_label_regex ^NETWORK_LABEL$
+add_config /etc/trove/trove.conf keystone_authtoken api_paste_config /etc/trove/api-paste.ini
+add_config /etc/trove/trove.conf keystone_authtoken www_authenticate_uri http://{{ keystone.internal_url }}/identity
+add_config /etc/trove/trove.conf keystone_authtoken auth_url http://{{ keystone.internal_url }}/identity
+add_config /etc/trove/trove.conf keystone_authtoken auth_type password
+add_config /etc/trove/trove.conf keystone_authtoken project_domain_name default
+add_config /etc/trove/trove.conf keystone_authtoken user_domain_name default
+add_config /etc/trove/trove.conf keystone_authtoken project_name service
+add_config /etc/trove/trove.conf keystone_authtoken username trove
+add_config /etc/trove/trove.conf keystone_authtoken password {{ trove.password }}
+
+# Edit the trove-taskmanager.conf file so it includes the
+# required settings to connect to the OpenStack Compute service as shown below
+add_config /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_user {{ compute.proxy_admin_user }}
+add_config /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_pass {{ compute.proxy_admin_pass }}
+add_config /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_tenant_name service
+add_config /etc/trove/trove-taskmanager.conf DEFAULT taskmanager_manager trove.taskmanager.manager.Manager
+
+# Inject configuration into guest via ConfigDrive
+add_config /etc/trove/trove-taskmanager.conf DEFAULT use_nova_server_config_drive True
+
+# Set these if using Neutron Networking
+add_config /etc/trove/trove-taskmanager.conf DEFAULT network_driver trove.network.neutron.NeutronDriver
+add_config /etc/trove/trove-taskmanager.conf DEFAULT network_label_regex ".*"
+
+
+# Config trove guests can connect to your OpenStack environment
+add_config /etc/trove/trove-guestagent.conf DEFAULT rabbit_host {{ message_queue.listen }}
+add_config /etc/trove/trove-guestagent.conf DEFAULT rabbit_password {{ message_queue.password }}
+add_config /etc/trove/trove-guestagent.conf DEFAULT trove_auth_url http://{{ keystone.internal_url }}/identity
+
+# Populate the trove database you created earlier in this procedure
+su -s /bin/sh -c "trove-manage db_sync" trove
+
+# Finalize installation
+
+
+# Restart the Database services
+service trove-api restart
+service trove-taskmanager restart
+service trove-conductor restart
+set +o xtrace

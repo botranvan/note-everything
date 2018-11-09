@@ -1,6 +1,6 @@
 #!/bin/sh
 source utils.sh
-
+set -o xtrace
 # Install and configure a storage node
 # Prerequisites
 apt install -y lvm2 thin-provisioning-tools
@@ -80,3 +80,4 @@ add_config /etc/cinder/cinder.conf oslo_concurrency lock_path /var/lib/cinder/tm
 # Restart the Block Storage volume service including its dependencies
 service tgt restart
 service cinder-volume restart
+set +o xtrace

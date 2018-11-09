@@ -1,4 +1,5 @@
 #!/bin/sh
+set -o xtrace
 
 # Update repository
 apt update -y && apt dist-upgrade -y
@@ -12,3 +13,4 @@ apt update -y && apt dist-upgrade -y
 
 # Install the OpenStack client
 apt install -y python-openstackclient wget crudini vim byobu curl
+set +o xtrace

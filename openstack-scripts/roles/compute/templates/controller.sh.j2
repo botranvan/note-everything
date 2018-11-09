@@ -1,5 +1,6 @@
 #!/bin/sh
 source utils.sh
+set -o xtrace
 
 # Install and configure controller node for Ubuntu
 mysql -e \
@@ -17,7 +18,8 @@ GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'localhost' IDENTIFIED BY '{{
 GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'%' IDENTIFIED BY '{{ database_placement_password }}';
 "
 # Source the admin credentials to gain access to admin-only CLI commands
-source /root/admin-openrc
+source {{ ansible_env.HOME }}/openrc admin admin
+
 
 # Create the Compute service credentials
 # Create the nova user
@@ -113,7 +115,9 @@ service nova-conductor restart
 service nova-novncproxy restart
 
 # Add the compute node to the cell database
-source /root/admin-openrc
+source {{ ansible_env.HOME }}/openrc admin admin
+
 openstack compute service list --service nova-compute
 su -s /bin/sh -c "nova-manage cell_v2 discover_hosts --verbose" nova
 add_config /etc/nova/nova.conf scheduler discover_hosts_in_cells_interval 300
+set +o xtrace

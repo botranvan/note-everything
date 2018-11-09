@@ -9,4 +9,5 @@
     - compute
     - neutron
     - cinder
+    - trove
 

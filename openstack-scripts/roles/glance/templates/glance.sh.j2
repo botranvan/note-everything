@@ -1,5 +1,6 @@
 #!/bin/sh
 source utils.sh
+set -o xtrace
 
 # Prerequisites
 mysql -e \
@@ -10,7 +11,8 @@ GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' \
 IDENTIFIED BY '{{ database_glance_password }}';
 "
 
-source /root/admin-openrc
+source {{ ansible_env.HOME }}/openrc admin admin
+
 
 # Create the glance user
 openstack user create --domain default glance --password {{ glance.password }}
@@ -83,3 +85,4 @@ openstack image create "cirros" --file cirros-0.4.0-x86_64-disk.img --disk-forma
 
 # Confirm upload of the image and validate attributes
 openstack image list
+set +o xtrace

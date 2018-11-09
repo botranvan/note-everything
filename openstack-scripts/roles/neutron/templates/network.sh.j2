@@ -1,5 +1,6 @@
 #!/bin/sh
 source utils.sh
+set -o xtrace
 
 # Network node configure
 # Open vSwitch: Self-service networks
@@ -57,3 +58,4 @@ add_config /etc/neutron/l3_agent.ini DEFAULT external_network_bridge
 # Finalize installation
 service neutron-l3-agent restart
 service neutron-openvswitch-agent restart
+set +o xtrace

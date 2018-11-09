@@ -10,7 +10,7 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 "is_owner_or_member": "rule:is_owner_project or rule:is_member"
 
 # edited
-"is_reader": "role:reader"
+"is_reader": "role:reader and project_id:%(project_id)s"
 
 # Decides what is required for the 'is_admin:True' check to succeed.
 # edited
@@ -120,36 +120,18 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # edited
 "volume:delete_snapshot": "rule:admin_or_owner or rule:is_member"
 
-# Reset status of a snapshot.
-# POST  /snapshots/{snapshot_id}/action (os-reset_status)
-# edited
-"volume_extension:snapshot_admin_actions:reset_status": "rule:admin_api or rule:is_owner_or_member"
+
 
 # Update database fields of snapshot.
 # POST  /snapshots/{snapshot_id}/action (update_snapshot_status)
 # edited
-"snapshot_extension:snapshot_actions:update_snapshot_status": "not rule:is_reader"
+"snapshot_extension:snapshot_actions:update_snapshot_status": "rule:admin_or_owner or rule:is_member"
 
-# Force delete a snapshot.
-# POST  /snapshots/{snapshot_id}/action (os-force_delete)
-# edited
-"volume_extension:snapshot_admin_actions:force_delete": "rule:admin_api or rule:is_owner_or_member"
 
-# List (in detail) of snapshots which are available to manage.
-# GET  /manageable_snapshots
-# GET  /manageable_snapshots/detail
-# edited
-"snapshot_extension:list_manageable": "rule:admin_api or rule:is_owner_or_member or rule:is_reader"
 
-# Manage an existing snapshot.
-# POST  /manageable_snapshots
-# edited
-"snapshot_extension:snapshot_manage": "rule:admin_api or rule:is_owner_or_member"
 
-# Stop managing a snapshot.
-# POST  /snapshots/{snapshot_id}/action (os-unmanage)
-# edited
-"snapshot_extension:snapshot_unmanage": "rule:admin_api or rule:admin_or_owner or rule:is_member"
+
+
 
 # List backups.
 # GET  /backups
@@ -157,11 +139,7 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # edited
 "backup:get_all": "rule:admin_or_owner or rule:is_member or rule:is_reader"
 
-# List backups or show backup with project attributes.
-# GET  /backups/{backup_id}
-# GET  /backups/detail
-# edited
-"backup:backup_project_attribute": "rule:admin_api or rule:is_owner_or_member or rule:is_reader"
+
 
 # Create backup.
 # POST  /backups
@@ -188,25 +166,13 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # edited
 "backup:restore": "rule:admin_or_owner or rule:is_member"
 
-# Import backup.
-# POST  /backups/{backup_id}/import_record
-# edited
-"backup:backup-import": "rule:admin_api or rule:is_owner_or_member"
 
-# Export backup.
-# POST  /backups/{backup_id}/export_record
-# edited
-"backup:export-import": "rule:admin_api or rule:is_owner_or_member"
 
-# Reset status of a backup.
-# POST  /backups/{backup_id}/action (os-reset_status)
-# edited
-"volume_extension:backup_admin_actions:reset_status": "rule:admin_api or rule:is_owner_or_member"
 
-# Force delete a backup.
-# POST  /backups/{backup_id}/action (os-force_delete)
-# edited
-"volume_extension:backup_admin_actions:force_delete": "rule:admin_api or rule:is_owner_or_member"
+
+
+
+
 
 # List groups.
 # GET  /groups
@@ -214,41 +180,20 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # edited
 "group:get_all": "@"
 
-# Create group.
-# POST  /groups
-# edited
-"group:create": "rule:admin_or_owner or rule:is_member"
+
 
 # Show group.
 # GET  /groups/{group_id}
 # edited
 "group:get": "@"
 
-# Update group.
-# PUT  /groups/{group_id}
-# edited
-"group:update": "rule:admin_or_owner or rule:is_member"
 
-# Create, update or delete a group type.
-# POST  /group_types/
-# PUT  /group_types/{group_type_id}
-# DELETE  /group_types/{group_type_id}
-# edited
-"group:group_types_manage": "rule:admin_api or rule:is_owner_or_member"
 
-# Show group type with type specs attributes.
-# GET  /group_types/{group_type_id}
-# edited
-"group:access_group_types_specs": "rule:admin_api or rule:is_owner_or_member"
 
-# Create, show, update and delete group type spec.
-# GET  /group_types/{group_type_id}/group_specs/{g_spec_id}
-# GET  /group_types/{group_type_id}/group_specs
-# POST  /group_types/{group_type_id}/group_specs
-# PUT  /group_types/{group_type_id}/group_specs/{g_spec_id}
-# DELETE  /group_types/{group_type_id}/group_specs/{g_spec_id}
-# edited
-"group:group_types_specs": "rule:admin_api or rule:is_owner_or_member"
+
+
+
+
 
 # List group snapshots.
 # GET  /group_snapshots
@@ -276,20 +221,6 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # edited
 "group:update_group_snapshot": "rule:admin_or_owner or rule:is_member"
 
-# Reset status of group snapshot.
-# POST  /group_snapshots/{g_snapshot_id}/action (reset_status)
-# edited
-"group:reset_group_snapshot_status": "rule:admin_or_owner or rule:is_member"
-
-# Delete group.
-# POST  /groups/{group_id}/action (delete)
-# edited
-"group:delete": "rule:admin_or_owner or rule:is_member"
-
-# Reset status of group.
-# POST  /groups/{group_id}/action (reset_status)
-# edited
-"group:reset_status": "rule:admin_api or rule:is_member"
 
 
 
@@ -297,21 +228,16 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 
 
 
-# List (in detail) of volumes which are available to manage.
-# GET  /manageable_volumes
-# GET  /manageable_volumes/detail
-# edited
-"volume_extension:list_manageable": "rule:admin_api or rule:is_owner_or_member"
 
-# Manage existing volumes.
-# POST  /manageable_volumes
-# edited
-"volume_extension:volume_manage": "rule:admin_api or rule:is_owner_or_member"
 
-# Stop managing a volume.
-# POST  /volumes/{volume_id}/action (os-unmanage)
-# edited
-"volume_extension:volume_unmanage": "rule:admin_api or rule:is_owner_or_member"
+
+
+
+
+
+
+
+
 
 
 
@@ -330,17 +256,11 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # edited
 "volume:revert_to_snapshot": "rule:admin_or_owner or rule:is_member"
 
-# Reset status of a volume.
-# POST  /volumes/{volume_id}/action (os-reset_status)
-# edited
-"volume_extension:volume_admin_actions:reset_status": "rule:admin_api or rule:is_member"
 
 
 
-# Force delete a volume.
-# POST  /volumes/{volume_id}/action (os-force_delete)
-# edited
-"volume_extension:volume_admin_actions:force_delete": "rule:admin_api or rule:is_owner_project"
+
+
 
 
 
@@ -349,10 +269,7 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # edited
 "volume_extension:volume_actions:upload_image": "rule:admin_or_owner or rule:is_member"
 
-# Force detach a volume.
-# POST  /volumes/{volume_id}/action (os-force_detach)
-# edited
-"volume_extension:volume_admin_actions:force_detach": "rule:admin_api or rule:is_member"
+
 
 
 # Initialize volume attachment.
@@ -414,7 +331,7 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # Accept a volume transfer.
 # POST  /os-volume-transfer/{transfer_id}/accept
 # edited
-"volume:accept_transfer": "not rule:is_reader"
+"volume:accept_transfer": "rule:admin_or_owner or rule:is_member"
 
 # Delete volume transfer.
 # DELETE  /os-volume-transfer/{transfer_id}
@@ -456,7 +373,7 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # Create volume from image.
 # POST  /volumes
 # edited
-"volume:create_from_image": "not rule:is_reader"
+"volume:create_from_image": "rule:admin_or_owner or rule:is_member"
 
 # Show volume.
 # GET  /volumes/{volume_id}
@@ -479,10 +396,7 @@ cat << EOF > /etc/cinder/cinder.policy.yaml
 # edited
 "volume:delete": "rule:admin_or_owner or rule:is_member"
 
-# Force Delete a volume.
-# DELETE  /volumes/{volume_id}
-# edited
-"volume:force_delete": "rule:admin_api or rule:is_owner_project"
+
 
 
 # List or show volume with tenant attribute.

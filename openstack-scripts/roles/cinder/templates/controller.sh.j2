@@ -1,5 +1,6 @@
 #!/bin/sh
 source utils.sh
+set -o xtrace
 
 # Prerequisites
 # To create the database
@@ -11,7 +12,8 @@ GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' IDENTIFIED BY '{{ database_cind
 "
 
 # Source the admin credentials to gain access to admin-only CLI commands
-source /root/admin-openrc
+source {{ ansible_env.HOME }}/openrc admin admin
+
 
 # To create the service credentials
 openstack user create --domain default --password {{ cinder.password }} cinder
@@ -77,3 +79,4 @@ service nova-api restart
 # Restart the Block Storage services
 service cinder-scheduler restart
 service apache2 restart
+set +o xtrace
