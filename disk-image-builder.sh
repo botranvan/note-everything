@@ -19,7 +19,7 @@ export DIB_CLOUD_INIT_ETC_HOSTS=true
 export DIB_CLOUD_INIT_DATASOURCES="ConfigDrive"
 # export DATASTORE_PKG_LOCATION=mysql-community-server_5.7.24-1ubuntu16.04_amd64.deb
 
-disk-image-create -a amd64 -o ${OS_NAME}-${RELEASE}-mysql vm ${OS_NAME} ${OS_NAME}-guest cloud-init-datasources ${OS_NAME}-${SERVICE_TYPE}
+disk-image-create -a amd64 -o ${OS_NAME}-${RELEASE}-mysql vm ${OS_NAME} ${OS_NAME}-guest cloud-init-datasources ${OS_NAME}-${SERVICE_TYPE} ${OS_NAME}-${RELEASE}-mysql
 
 
 # integration/scripts/files/elements/ubuntu-guest/pre-install.d/04-baseline-tools
