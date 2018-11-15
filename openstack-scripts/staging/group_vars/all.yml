@@ -4,7 +4,9 @@ dest_scripts: /home/ministry/openstack-scripts
 
 
 # neutron
-provider_interface: vlan57
+ovs_deploy_network: provider
+provider_interface: bond0
+
 
 # cinder
 physical_volume: /dev/sda

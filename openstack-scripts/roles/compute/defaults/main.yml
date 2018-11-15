@@ -11,6 +11,7 @@ compute:
   public_url: 192.168.53.89:8774
   proxy_admin_user: nova
   proxy_admin_pass: Welcome123
+  local_ip: "{ ansible_vlan53.ipv4.address}"
 
 placement:
   password: Welcome123

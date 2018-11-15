@@ -8,7 +8,7 @@ apt install -y neutron-openvswitch-agent neutron-dhcp-agent neutron-metadata-age
 
 {% if ovs_deploy_network == "self-service" %}
 # enable VXLAN support including layer-2 population
-add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip {{ ansible_eth2.ipv4.address }}
+add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip {{ compute_node.local_ip }}
 add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini agent tunnel_types vxlan
 add_config /etc/neutron/plugins/ml2/openvswitch_agent.ini agent l2_population True
 {% endif %}
@@ -25,6 +25,8 @@ add_config /etc/neutron/neutron.conf DEFAULT transport_url rabbit://{{ message_q
 
 # configure Identity service access
 add_config /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
+add_config /etc/neutron/neutron.conf DEFAULT state_path /var/lib/neutron
+add_config /etc/neutron/neutron.conf oslo_concurrency lock_path '$state_path'/lock
 add_config /etc/neutron/neutron.conf keystone_authtoken www_authenticate_uri http://{{ keystone.internal_url }}
 add_config /etc/neutron/neutron.conf keystone_authtoken auth_url http://{{ keystone.internal_url }}
 add_config /etc/neutron/neutron.conf keystone_authtoken memcached_servers {{ memcached.listen }}:11211

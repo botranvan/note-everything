@@ -67,6 +67,6 @@ network:
     vlan57:
       id: 57
       link: bond0
-      addresses: ["192.168.57.127/24"]
+      addresses: ["192.168.57.89/24"]
       nameservers:
         addresses: ["1.1.1.1", "8.8.8.8"]
