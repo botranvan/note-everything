@@ -12,6 +12,7 @@ sed -i "s/#allow foo.example.net/\
 #allow foo.example.net\n\
 allow {{ network }}/g" /etc/chrony/chrony.conf
 service chrony restart
+systemctl enable chrony
 
 # SQL database for Ubuntu
 apt install -y mariadb-server python-pymysql

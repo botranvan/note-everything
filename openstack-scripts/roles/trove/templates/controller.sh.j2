@@ -63,9 +63,7 @@ add_config /etc/trove/trove-conductor.conf DEFAULT cinder_url http://{{ cinder.i
 add_config /etc/trove/trove-conductor.conf database connection mysql+pymysql://trove:{{ database_trove_password }}@{{ mysql_database.listen }}/trove
 # Configure the Database service to use the RabbitMQ message broker
 add_config /etc/trove/trove-conductor.conf DEFAULT rpc_backend rabbit
-add_config /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_host {{ message_queue.listen }}
-add_config /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_userid {{ message_queue.username }}
-add_config /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_password {{ message_queue.password }}
+add_config /etc/trove/trove-conductor.conf DEFAULT transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
 
 # Verify that the api-paste.ini file is present in /etc/trove
 cat << EOF > /etc/trove/api-paste.ini
@@ -117,7 +115,7 @@ paste.filter_factory = trove.common.wsgi:Debug
 use = egg:oslo.middleware#http_proxy_to_wsgi
 EOF
 
-add_config /etc/trove/trove.conf DEFAULT network_label_regex ".*"
+add_config /etc/trove/trove.conf DEFAULT network_label_regex ".\*"
 # Edit the trove.conf file so it includes appropriate values for the settings shown below
 add_config /etc/trove/trove.conf keystone_authtoken auth_strategy keystone
 add_config /etc/trove/trove.conf keystone_authtoken add_addresses True
@@ -143,13 +141,11 @@ add_config /etc/trove/trove-taskmanager.conf DEFAULT use_nova_server_config_driv
 
 # Set these if using Neutron Networking
 add_config /etc/trove/trove-taskmanager.conf DEFAULT network_driver trove.network.neutron.NeutronDriver
-add_config /etc/trove/trove-taskmanager.conf DEFAULT network_label_regex ".*"
+add_config /etc/trove/trove-taskmanager.conf DEFAULT network_label_regex ".\*"
 
 
 # Config trove guests can connect to your OpenStack environment
-add_config /etc/trove/trove-guestagent.conf DEFAULT rabbit_host {{ message_queue.listen }}
-add_config /etc/trove/trove-guestagent.conf DEFAULT rabbit_password {{ message_queue.password }}
-add_config /etc/trove/trove-guestagent.conf DEFAULT trove_auth_url http://{{ keystone.internal_url }}/identity
+add_config /etc/trove/trove-guestagent.conf DEFAULT transport_url rabbit://{{ message_queue.username }}:{{ message_queue.password }}@{{ message_queue.listen }}
 
 # Populate the trove database you created earlier in this procedure
 su -s /bin/sh -c "trove-manage db_sync" trove

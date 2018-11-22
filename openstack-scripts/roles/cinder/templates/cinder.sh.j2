@@ -64,6 +64,7 @@ add_config /etc/cinder/cinder.conf DEFAULT my_ip {{ ansible_host }}
 # enable the LVM back end
 add_config /etc/cinder/cinder.conf DEFAULT enabled_backends lvm
 
+add_config /etc/cinder/cinder.conf lvm volume_backend_name lvm
 add_config /etc/cinder/cinder.conf lvm volume_driver cinder.volume.drivers.lvm.LVMVolumeDriver
 add_config /etc/cinder/cinder.conf lvm volume_group cinder-volumes
 add_config /etc/cinder/cinder.conf lvm iscsi_protocol iscsi
