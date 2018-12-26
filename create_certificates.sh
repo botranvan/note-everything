@@ -17,11 +17,11 @@ echo 01 > serial
 
 
 echo "Create the CA's private and public keypair (2k long)"
-openssl genrsa -passout pass:foobar -des3 -out private/cakey.pem 2048
+openssl genrsa -passout pass:Welcome123 -des3 -out private/cakey.pem 2048
 
 echo "You will be asked to enter some information about the certificate."
 
-openssl req -x509 -passin pass:foobar -new -nodes -key private/cakey.pem \
+openssl req -x509 -passin pass:Welcome123 -new -nodes -key private/cakey.pem \
         -config $OPEN_SSL_CONF \
         -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com" \
         -days $VALIDITY_DAYS \
@@ -40,7 +40,7 @@ openssl req \
        -out client.csr
 
 echo "Sign request"
-openssl ca -passin pass:foobar -config $OPEN_SSL_CONF -in client.csr \
+openssl ca -passin pass:Welcome123 -config $OPEN_SSL_CONF -in client.csr \
            -days $VALIDITY_DAYS -out client-.pem -batch
 
 echo "Generate single pem client.pem"
