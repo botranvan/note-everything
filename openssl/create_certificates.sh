@@ -55,4 +55,4 @@ crudini --set $octavia_conf certificates ca_private_key_passphrase Welcome123
 
 crudini --set $octavia_conf haproxy_amphora client_cert /etc/octavia/certs/client.pem
 crudini --set $octavia_conf haproxy_amphora server_ca /etc/octavia/certs/ca_01.pem
-crudini --set ${octavia}/octavia.conf certificates cert_generator local_cert_generator
+crudini --set $octavia_conf certificates cert_generator local_cert_generator
