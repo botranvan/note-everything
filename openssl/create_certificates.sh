@@ -45,3 +45,14 @@ openssl ca -passin pass:Welcome123 -config $OPEN_SSL_CONF -in client.csr \
 
 echo "Generate single pem client.pem"
 cat client-.pem client.key > client.pem
+
+octavia_conf="/etc/octavia/octavia.conf"
+crudini --set $octavia_conf controller_worker client_ca /etc/octavia/certs/ca_01.pem
+
+crudini --set $octavia_conf certificates ca_certificate /etc/octavia/certs/ca_01.pem
+crudini --set $octavia_conf certificates ca_private_key /etc/octavia/certs/private/cakey.pem
+crudini --set $octavia_conf certificates ca_private_key_passphrase Welcome123
+
+crudini --set $octavia_conf haproxy_amphora client_cert /etc/octavia/certs/client.pem
+crudini --set $octavia_conf haproxy_amphora server_ca /etc/octavia/certs/ca_01.pem
+crudini --set ${octavia}/octavia.conf certificates cert_generator local_cert_generator
