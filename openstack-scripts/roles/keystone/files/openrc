@@ -16,6 +16,9 @@ fi
 if [[ -n "$2" ]]; then
     OS_PROJECT_NAME=$2
 fi
+if [[ -n "$3" ]]; then
+    OS_PASSWORD=$3
+fi
 
 # Find the other rc files
 RC_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
