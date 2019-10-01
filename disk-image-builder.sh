@@ -13,7 +13,7 @@ export OS_NAME=ubuntu
 export RELEASE=xenial
 export DIB_RELEASE=xenial
 export SERVICE_TYPE=mysql
-# export SSH_DIR="/opt/stack/.ssh"
+export SSH_DIR="/opt/stack/.ssh"
 # in /opt/stack run command:
 # mkdir .ssh && chmod 700 .ssh
 # ssh-genkey -b 2048 -t rsa
