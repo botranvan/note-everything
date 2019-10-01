@@ -1,13 +1,15 @@
 export CONTROLLER_IP=192.168.53.89
 export ELEMENTS_PATH="/opt/stack/diskimage-builder/diskimage_builder/elements"
 export ELEMENTS_PATH+=":/opt/stack/trove/integration/scripts/files/elements"
+export ESCAPED_PATH_TROVE="\/opt\/stack\/trove"
+export ESCAPED_GUEST_LOGDIR="\/var\/log\/trove"
 export TROVESTACK_SCRIPTS="/opt/stack/trove/integration/scripts"
-export GUEST_USERNAME=ministry
-export HOST_USERNAME=stack
-export HOST_SCP_USERNAME=stack
+export GUEST_USERNAME=root
+export HOST_USERNAME=root
+export HOST_SCP_USERNAME=root
 export OS_NAME=ubuntu
-export RELEASE=bionic
-export DIB_RELEASE=bionic
+export RELEASE=xenial
+export DIB_RELEASE=xenial
 export SERVICE_TYPE=mysql
 export SSH_DIR="/opt/stack/.ssh"
 # in /opt/stack run command:
@@ -20,6 +22,7 @@ export DIB_CLOUD_INIT_DATASOURCES="ConfigDrive"
 # export DATASTORE_PKG_LOCATION=mysql-community-server_5.7.24-1ubuntu16.04_amd64.deb
 
 disk-image-create -a amd64 -o ${OS_NAME}-${RELEASE}-mysql vm ${OS_NAME} ${OS_NAME}-guest ${OS_NAME}-${RELEASE}-guest cloud-init-datasources ${OS_NAME}-${SERVICE_TYPE} ${OS_NAME}-${RELEASE}-mysql
+
 
 # integration/scripts/files/elements/ubuntu-guest/pre-install.d/04-baseline-tools
 # replace python-software-properties to software-properties-common
@@ -35,10 +38,10 @@ disk-image-create -a amd64 -o ${OS_NAME}-${RELEASE}-mysql vm ${OS_NAME} ${OS_NAM
 # create security group rule
 
 # Update database store
-openstack image create mysql-5.5 --disk-format qcow2 --container-format bare --public --file
+# openstack image create mysql-5.5 --disk-format qcow2 --container-format bare --public --file
 
-trove-manage --config-file=/etc/trove/trove.conf datastore_update mysql ""
+# trove-manage --config-file=/etc/trove/trove.conf datastore_update mysql ""
 
-trove-manage --config-file=/etc/trove/trove.conf datastore_version_update mysql mysql-5.5 mysql GLANCE_ID "" 1
+# trove-manage --config-file=/etc/trove/trove.conf datastore_version_update mysql mysql-5.5 mysql GLANCE_ID "" 1
 
-trove-manage db_load_datastore_config_parameters mysql mysql-5.5 /usr/lib/python2.7/dist-packages/trove/templates/mysql/validation-rules.json
+# trove-manage db_load_datastore_config_parameters mysql mysql-5.5 /usr/lib/python2.7/dist-packages/trove/templates/mysql/validation-rules.json
