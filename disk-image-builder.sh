@@ -4,14 +4,16 @@ export ELEMENTS_PATH+=":/opt/stack/trove/integration/scripts/files/elements"
 export ESCAPED_PATH_TROVE="\/opt\/stack\/trove"
 export ESCAPED_GUEST_LOGDIR="\/var\/log\/trove"
 export TROVESTACK_SCRIPTS="/opt/stack/trove/integration/scripts"
-export GUEST_USERNAME=root
+# GUEST_USERNAME must is a user in physical host using
+# and this user must had ssh key
+export GUEST_USERNAME=ministry
 export HOST_USERNAME=root
 export HOST_SCP_USERNAME=root
 export OS_NAME=ubuntu
 export RELEASE=xenial
 export DIB_RELEASE=xenial
 export SERVICE_TYPE=mysql
-export SSH_DIR="/opt/stack/.ssh"
+# export SSH_DIR="/opt/stack/.ssh"
 # in /opt/stack run command:
 # mkdir .ssh && chmod 700 .ssh
 # ssh-genkey -b 2048 -t rsa
