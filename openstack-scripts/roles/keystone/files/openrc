@@ -11,13 +11,13 @@
 # been removed.
 
 if [[ -n "$1" ]]; then
-    OS_USERNAME=$1
+    declare -x OS_USERNAME=$1
 fi
 if [[ -n "$2" ]]; then
-    OS_PROJECT_NAME=$2
+    declare -x OS_PROJECT_NAME=$2
 fi
 if [[ -n "$3" ]]; then
-    OS_PASSWORD=$3
+    declare -x OS_PASSWORD=$3
 fi
 
 # Find the other rc files
@@ -29,22 +29,22 @@ RC_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
 # referenced, but in all cases this just means **project**.  We will
 # warn if we need to turn on legacy **tenant** support to have a
 # working environment.
-export OS_PROJECT_NAME=${OS_PROJECT_NAME:-demo}
+declare -x OS_PROJECT_NAME=${OS_PROJECT_NAME:-demo}
 
 echo "WARNING: setting legacy OS_TENANT_NAME to support cli tools."
-export OS_TENANT_NAME=$OS_PROJECT_NAME
+declare -x OS_TENANT_NAME=$OS_PROJECT_NAME
 
 # In addition to the owning entity (project), nova stores the entity performing
 # the action as the **user**.
-export OS_USERNAME=${OS_USERNAME:-demo}
+declare -x OS_USERNAME=${OS_USERNAME:-demo}
 
 # With Keystone you pass the keystone password instead of an api key.
 # Recent versions of novaclient use OS_PASSWORD instead of NOVA_API_KEYs
 # or NOVA_PASSWORD.
-export OS_PASSWORD=${ADMIN_PASSWORD:-Welcome123}
+declare -x OS_PASSWORD=${OS_PASSWORD:-Welcome123}
 
 # Region
-export OS_REGION_NAME=${REGION_NAME:-RegionOne}
+declare -x OS_REGION_NAME=${REGION_NAME:-RegionOne}
 
 # Set the host API endpoint. This will default to HOST_IP if SERVICE_IP_VERSION
 # is 4, else HOST_IPV6 if it's 6. SERVICE_HOST may also be used to specify the
@@ -63,10 +63,10 @@ else
 fi
 
 # Identity API version
-export OS_IDENTITY_API_VERSION=${IDENTITY_API_VERSION:-3}
+declare -x OS_IDENTITY_API_VERSION=${IDENTITY_API_VERSION:-3}
 
 # Ask keystoneauth1 to use keystone
-export OS_AUTH_TYPE=password
+declare -x OS_AUTH_TYPE=password
 
 # Authenticating against an OpenStack cloud using Keystone returns a **Token**
 # and **Service Catalog**.  The catalog contains the endpoints for all services
@@ -78,13 +78,13 @@ export OS_AUTH_TYPE=password
 KEYSTONE_BACKUP=http://$SERVICE_HOST:5000/v3
 KEYSTONE_AUTH_URI=${KEYSTONE_AUTH_URI:-$KEYSTONE_BACKUP}
 
-export OS_AUTH_URL=${OS_AUTH_URL:-$KEYSTONE_AUTH_URI}
+declare -x OS_AUTH_URL=${OS_AUTH_URL:-$KEYSTONE_AUTH_URI}
 
 # Currently, in order to use openstackclient with Identity API v3,
 # we need to set the domain which the user and project belong to.
 if [ "$OS_IDENTITY_API_VERSION" = "3" ]; then
-    export OS_USER_DOMAIN_ID=${OS_USER_DOMAIN_ID:-"default"}
-    export OS_PROJECT_DOMAIN_ID=${OS_PROJECT_DOMAIN_ID:-"default"}
+    declare -x OS_USER_DOMAIN_ID=${OS_USER_DOMAIN_ID:-"default"}
+    declare -x OS_PROJECT_DOMAIN_ID=${OS_PROJECT_DOMAIN_ID:-"default"}
 fi
 
 # Set OS_CACERT to a default CA certificate chain if it exists.
@@ -92,11 +92,11 @@ if [[ ! -v OS_CACERT ]] ; then
     DEFAULT_OS_CACERT=$INT_CA_DIR/ca-chain.pem
     # If the file does not exist, this may confuse preflight sanity checks
     if [ -e $DEFAULT_OS_CACERT ] ; then
-        export OS_CACERT=$DEFAULT_OS_CACERT
+        declare -x OS_CACERT=$DEFAULT_OS_CACERT
     fi
 fi
 
 # Currently cinderclient needs you to specify the *volume api* version. This
 # needs to match the config of your catalog returned by Keystone.
-export CINDER_VERSION=${CINDER_VERSION:-3}
-export OS_VOLUME_API_VERSION=${OS_VOLUME_API_VERSION:-$CINDER_VERSION}
+declare -x CINDER_VERSION=${CINDER_VERSION:-3}
+declare -x OS_VOLUME_API_VERSION=${OS_VOLUME_API_VERSION:-$CINDER_VERSION}
