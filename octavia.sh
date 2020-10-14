@@ -16,8 +16,8 @@ openstack subnet create --subnet-pool EXT_DIRECTNET --subnet-range 192.168.58.0/
 openstack network create dev-lb-mgmt-net
 openstack subnet create --network dev-lb-mgmt-net --subnet-pool dev-lb-mgmt-net --prefix-length 20 dev-lb-mgmt-net
 
-openstack network create dev-frontend-net
-openstack subnet create --network dev-frontend-net --subnet-pool dev-lb-mgmt-net --prefix-length 21 dev-frontend-net
+# openstack network create dev-frontend-net
+# openstack subnet create --network dev-frontend-net --subnet-pool dev-lb-mgmt-net --prefix-length 21 dev-frontend-net
 
 
 
@@ -31,9 +31,27 @@ openstack bgp speaker add network bgpspeaker EXT_DIRECTNET_8
 
 # openstack bgp speaker add peer bgpspeaker bgppeer
 
+# Make port
 openstack port create --network dev-lb-mgmt-net --security-group lb-health-mgr-sec-grp --device-owner Octavia:health-mgr --host openstack2 dev-octavia-manage-openstack2
 
-ovs-vsctl -- --may-exist add-port br-int dev-o-hm0 -- set Interface dev-o-hm0 type=internal -- set Interface dev-o-hm0 external-ids:iface-status=active -- set Interface dev-o-hm0 external-ids:attached-mac=fa:16:3e:bf:01:20 -- set Interface dev-o-hm0 external-ids:skip_cleanup=true -- set Interface dev-o-hm0 external-ids:iface-id=05782715-7dc0-4eea-8f93-63e8110bf1b9
+ovs-vsctl del-port dev-o-hm0
+ovs-vsctl -- --may-exist add-port br-int dev-o-hm0 -- set Interface dev-o-hm0 type=internal -- set Interface dev-o-hm0 external-ids:iface-status=active -- set Interface dev-o-hm0 external-ids:attached-mac=fa:16:3e:1e:e9:e7 -- set Interface dev-o-hm0 external-ids:skip_cleanup=true -- set Interface dev-o-hm0 external-ids:iface-id=35b3ca4a-b02a-4b5e-a447-5675df178179
+ip link set dev dev-o-hm0 address fa:16:3e:1e:e9:e7
+dhclient -r dev-o-hm0
+dhclient -v dev-o-hm0
 
-ip link set dev dev-o-hm0 address fa:16:3e:bf:01:20
-dhclient -v dev-o-hm0   
+
+
+
+
+-------------------------------------------
+# Clear
+openstack network delete EXT_DIRECTNET_5 EXT_DIRECTNET_6 EXT_DIRECTNET_7 EXT_DIRECTNET_8
+openstack subnet pool delete EXT_DIRECTNET
+
+openstack port delete dev-octavia-manage-openstack2 dev-octavia-manage-openstack
+openstack network delete dev-lb-mgmt-net
+openstack subnet pool delete dev-lb-mgmt-net
+
+openstack bgp speaker delete bgpspeaker
+openstack address scope delete bgp

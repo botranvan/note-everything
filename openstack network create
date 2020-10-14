@@ -1,7 +1,7 @@
 openstack network create --share --provider-physical-network provider \
---provider-network-type vlan --provider-segment 55 --external EXT_DIRECTNET_6
+--provider-network-type vlan --provider-segment 58 --external EXT_DIRECTNET_8
 
-openstack subnet create --subnet-range 192.168.55.0/24 --gateway 192.168.55.1 \
---network EXT_DIRECTNET_6 --allocation-pool start=192.168.55.11,end=192.168.55.250 \
---dns-nameserver 8.8.4.4 EXT_DIRECTNET_6
+openstack subnet create --subnet-range 192.168.58.0/24 --gateway 192.168.58.1 \
+--network EXT_DIRECTNET_8 --allocation-pool start=192.168.58.11,end=192.168.58.250 \
+--dns-nameserver 8.8.4.4 EXT_DIRECTNET_8
 
