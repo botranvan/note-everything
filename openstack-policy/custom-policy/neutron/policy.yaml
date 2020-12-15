@@ -8,7 +8,7 @@
 "is_owner_project": "role:owner_project and project_id:%(token.project.id)s"
 
 # Rule for resource owner access
-"is_owner_resource": "role:member and tenant_id:%(network:tenant_id)s"
+"is_owner_resource": "role:member and project_id:%(project_id)s"
 "owner": "rule:is_owner_resource"
 
 # Allow get
