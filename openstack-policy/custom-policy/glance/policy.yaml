@@ -1,0 +1,85 @@
+# Default rule for Project level non admin APIs.
+"project_member_api": "role:member"
+
+# Default rule for Project level read only APIs.
+"project_reader_api": "role:reader"
+
+# Owner of project
+"is_owner_project": "role:owner_project"
+
+# Owner of resource
+"is_owner_resource": "role:member"
+
+# Allow get
+"allowed_get": "rule:project_reader_api"
+
+# Allow create
+"allowed_create_update": "rule:project_member_api"
+
+# Allow delete
+"allowed_delete": "rule:is_owner_resource"
+
+
+# ----------------------------------------
+"context_is_admin":  "role:admin"
+"default": "role:admin"
+
+"add_image": "rule:default or rule:allowed_create_update"
+"delete_image": "rule:default or rule:allowed_delete"
+"get_image": ""
+"get_images": ""
+"modify_image": "rule:default or rule:allowed_create_update"
+"publicize_image": "role:admin"
+"communitize_image": ""
+"copy_from": ""
+
+"download_image": ""
+"upload_image": "rule:default or rule:allowed_create_update"
+
+"delete_image_location": ""
+"get_image_location": ""
+"set_image_location": ""
+
+"add_member": ""
+"delete_member": ""
+"get_member": ""
+"get_members": ""
+"modify_member": ""
+
+"manage_image_cache": "role:admin"
+
+"get_task": ""
+"get_tasks": ""
+"add_task": ""
+"modify_task": ""
+"tasks_api_access": "role:admin"
+
+"deactivate": ""
+"reactivate": ""
+
+"get_metadef_namespace": ""
+
+"get_metadef_namespaces": ""
+"modify_metadef_namespace": ""
+"add_metadef_namespace": ""
+
+"get_metadef_object": ""
+"get_metadef_objects": ""
+"modify_metadef_object": ""
+"add_metadef_object": ""
+
+"list_metadef_resource_types": ""
+"get_metadef_resource_type": ""
+"add_metadef_resource_type_association": ""
+
+"get_metadef_property": ""
+"get_metadef_properties": ""
+"modify_metadef_property": ""
+"add_metadef_property": ""
+
+"get_metadef_tag": ""
+"get_metadef_tags": ""
+"modify_metadef_tag": ""
+"add_metadef_tag": ""
+"add_metadef_tags": ""
+
