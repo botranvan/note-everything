@@ -34,7 +34,7 @@
 #"admin_api": "is_admin:True"
 
 # Default rule for System Admin APIs.
-"system_admin_api": "role:admin and system_scope:all"
+"system_admin_api": "role:admin and system_scope:all or role:admin"
 
 # DEPRECATED
 # "rule:admin_api":"is_admin:True" has been deprecated since 21.0.0 in
