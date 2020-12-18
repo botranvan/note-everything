@@ -76,7 +76,7 @@
 # GET  /v3/users/{user_id}/application_credentials/{application_credential_id}
 # HEAD  /v3/users/{user_id}/application_credentials/{application_credential_id}
 # Intended scope(s): system, project
-#"identity:get_application_credential": "(role:reader and system_scope:all) or rule:owner"
+"identity:get_application_credential": "(role:reader and system_scope:all) or rule:owner"
 
 # DEPRECATED
 # "identity:get_application_credentials":"rule:admin_or_owner" has
@@ -105,7 +105,7 @@
 # Delete an application credential.
 # DELETE  /v3/users/{user_id}/application_credentials/{application_credential_id}
 # Intended scope(s): system, project
-#"identity:delete_application_credential": "(role:admin and system_scope:all) or rule:owner"
+"identity:delete_application_credential": "(role:admin and system_scope:all) or rule:owner"
 
 # DEPRECATED
 # "identity:delete_application_credentials":"rule:admin_or_owner" has
@@ -385,7 +385,7 @@
 # "identity:ec2_create_credential":"(role:admin and system_scope:all)
 # or rule:owner". The EC2 credential API is now aware of system scope
 # and default roles.
-"identity:ec2_create_credentials": "rule:identity:ec2_create_credential"
+# "identity:ec2_create_credentials": "rule:identity:ec2_create_credential"
 # Delete ec2 credential.
 # DELETE  /v3/users/{user_id}/credentials/OS-EC2/{credential_id}
 # Intended scope(s): system, project
@@ -397,7 +397,7 @@
 # "identity:ec2_delete_credential":"(role:admin and system_scope:all)
 # or user_id:%(target.credential.user_id)s". The EC2 credential API is
 # now aware of system scope and default roles.
-"identity:ec2_delete_credentials": "rule:identity:ec2_delete_credential"
+# "identity:ec2_delete_credentials": "rule:identity:ec2_delete_credential"
 # Show endpoint details.
 # GET  /v3/endpoints/{endpoint_id}
 # Intended scope(s): system
@@ -897,7 +897,7 @@
 # "identity:create_identity_provider":"role:admin and
 # system_scope:all". The identity provider API is now aware of system
 # scope and default roles.
-"identity:create_identity_providers": "rule:identity:create_identity_provider"
+# "identity:create_identity_providers": "rule:identity:create_identity_provider"
 # List identity providers.
 # GET  /v3/OS-FEDERATION/identity_providers
 # HEAD  /v3/OS-FEDERATION/identity_providers
@@ -920,7 +920,7 @@
 # "identity:get_identity_provider":"role:reader and system_scope:all".
 # The identity provider API is now aware of system scope and default
 # roles.
-"identity:get_identity_providers": "rule:identity:get_identity_provider"
+# "identity:get_identity_providers": "rule:identity:get_identity_provider"
 # Update identity provider.
 # PATCH  /v3/OS-FEDERATION/identity_providers/{idp_id}
 # Intended scope(s): system
@@ -932,7 +932,7 @@
 # "identity:update_identity_provider":"role:admin and
 # system_scope:all". The identity provider API is now aware of system
 # scope and default roles.
-"identity:update_identity_providers": "rule:identity:update_identity_provider"
+# "identity:update_identity_providers": "rule:identity:update_identity_provider"
 # Delete identity provider.
 # DELETE  /v3/OS-FEDERATION/identity_providers/{idp_id}
 # Intended scope(s): system
@@ -944,7 +944,7 @@
 # "identity:delete_identity_provider":"role:admin and
 # system_scope:all". The identity provider API is now aware of system
 # scope and default roles.
-"identity:delete_identity_providers": "rule:identity:delete_identity_provider"
+# "identity:delete_identity_providers": "rule:identity:delete_identity_provider"
 # Get information about an association between two roles. When a
 # relationship exists between a prior role and an implied role and the
 # prior role is assigned to a user, the user also assumes the implied
