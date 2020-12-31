@@ -317,7 +317,7 @@
 # GET  /os-quota-sets/{project_id}
 # GET  /os-quota-sets/{project_id}/default
 # GET  /os-quota-sets/{project_id}?usage=True
-"volume_extension:quotas:show": "rule:admin_or_owner"
+"volume_extension:quotas:show": "rule:admin_or_owner or rule:allowed_get"
 
 # Update project quota.
 # PUT  /os-quota-sets/{project_id}
@@ -439,7 +439,7 @@
 # GET  /types/detail
 # GET  /types/{type_id}
 # POST  /types
-"volume_extension:volume_type_access": "rule:admin_or_owner"
+"volume_extension:volume_type_access": "rule:admin_or_owner or rule:allowed_get"
 
 # Add volume type access for project.
 # POST  /types/{type_id}/action (addProjectAccess)
