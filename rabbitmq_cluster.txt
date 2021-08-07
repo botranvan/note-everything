@@ -1,4 +1,5 @@
 # Cai rabbitmq trên cả 3 node
+#rabbitmqctl eval '{ok, Q} = rabbit_amqqueue:lookup(rabbit_misc:r(<<"/">>, queue, <<"versioned_notifications.info">>)), rabbit_amqqueue:delete_crashed(Q).'
 
 yum -y install rabbitmq-server
 
