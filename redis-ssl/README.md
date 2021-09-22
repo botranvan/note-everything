@@ -1,9 +1,5 @@
 # Cách build images
 
-- Clone repository:
-        
-        git clone https://git.paas.vn/__ministry.nd/note-everything
-
 - Change directory path:
 
         cd note-everything/redis-ssl
